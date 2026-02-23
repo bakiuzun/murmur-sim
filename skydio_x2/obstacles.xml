@@ -1,0 +1,101 @@
+<mujoco model="DenseObstacleCourse">
+   
+<worldbody>
+    <!-- Murs latéraux -->
+    <body name="obstacle_right" pos="7 -2.5 1.2" mocap="true"> 
+        <geom type="box" size="10 0.1 1.2" rgba="0.5 0.5 0.5 1"/> 
+    </body>
+    <body name="obstacle_left" pos="7 2.5 1.2" mocap="true">
+        <geom type="box" size="10 0.1 1.2" rgba="0.5 0.5 0.5 1"/>
+    </body>
+
+    <body name="obstacle_up" pos="10 0 2.4" mocap="true">
+        <geom type="box" size="10 2.5 0.02" rgba="0.3 0.3 0.3 0.3"/>
+    </body>
+
+    <!-- Rangée 1 (x = 1-2) -->
+    <body name="obstacle_1" pos="1.5 0 0.8" mocap="true">
+        <geom type="box" size="0.2 0.4 1.2" rgba="1 0 0 1"/>
+    </body>
+    <body name="obstacle_2" pos="1.5 1.5 0.6" mocap="true">
+        <geom type="box" size="0.15 0.3 1.2" rgba="0.9 0.1 0.1 1"/>
+    </body>
+    <body name="obstacle_3" pos="1.5 -1.5 1.0" mocap="true">
+        <geom type="box" size="0.2 0.35 1.2" rgba="0.8 0.2 0.2 1"/>
+    </body>
+
+    <!-- Rangée 2 (x = 2.5-3.5) -->
+    <body name="obstacle_4" pos="3 0.8 0.7" mocap="true">
+        <geom type="box" size="0.25 0.5 1.2" rgba="0 1 0 1"/>
+    </body>
+    <body name="obstacle_5" pos="3 -0.8 0.9" mocap="true">
+        <geom type="box" size="0.2 0.4 1.2" rgba="0.1 0.9 0.1 1"/>
+    </body>
+    <body name="obstacle_6" pos="2.5 2 0.5" mocap="true">
+        <geom type="box" size="0.15 0.3 1.2" rgba="0.2 0.8 0.2 1"/>
+    </body>
+    <body name="obstacle_7" pos="3.5 -1.8 1.1" mocap="true">
+        <geom type="box" size="0.2 0.45 1.2" rgba="0.3 0.7 0.3 1"/>
+    </body>
+
+    <!-- Rangée 3 (x = 4-5) -->
+    <body name="obstacle_8" pos="4.5 0 1.0" mocap="true">
+        <geom type="box" size="0.3 0.6 1.2" rgba="0 0 1 1"/>
+    </body>
+    <body name="obstacle_9" pos="4 1.2 0.6" mocap="true">
+        <geom type="box" size="0.2 0.35 1.2" rgba="0.1 0.1 0.9 1"/>
+    </body>
+    <body name="obstacle_10" pos="4.5 -1.5 0.8" mocap="true">
+        <geom type="box" size="0.25 0.4 1.2" rgba="0.2 0.2 0.8 1"/>
+    </body>
+    <body name="obstacle_11" pos="5 2 1.2" mocap="true">
+        <geom type="box" size="0.15 0.5 1.2" rgba="0.3 0.3 0.7 1"/>
+    </body>
+    <body name="obstacle_12" pos="5 -0.5 0.5" mocap="true">
+        <geom type="box" size="0.2 0.3 1.2" rgba="0.4 0.4 0.9 1"/>
+    </body>
+
+    <!-- Rangée 4 (x = 6-7) -->
+    <body name="obstacle_13" pos="6 0.5 0.9" mocap="true">
+        <geom type="box" size="0.2 0.45 1.2" rgba="1 0.5 0 1"/>
+    </body>
+    <body name="obstacle_14" pos="6.5 -1 1.1" mocap="true">
+        <geom type="box" size="0.25 0.5 1.2" rgba="0.9 0.6 0.1 1"/>
+    </body>
+    <body name="obstacle_15" pos="6 1.8 0.7" mocap="true">
+        <geom type="box" size="0.15 0.4 1.2" rgba="0.8 0.5 0.2 1"/>
+    </body>
+    <body name="obstacle_16" pos="7 0 0.6" mocap="true">
+        <geom type="box" size="0.2 0.35 1.2" rgba="1 0.4 0.1 1"/>
+    </body>
+    <body name="obstacle_17" pos="6.5 2 1.0" mocap="true">
+        <geom type="box" size="0.2 0.3 1.2" rgba="0.9 0.5 0 1"/>
+    </body>
+
+    <!-- Rangée 5 (x = 8-9) -->
+    <body name="obstacle_18" pos="8 -0.5 0.8" mocap="true">
+        <geom type="box" size="0.25 0.5 1.2" rgba="0.5 0 0.5 1"/>
+    </body>
+    <body name="obstacle_19" pos="8.5 1 1.0" mocap="true">
+        <geom type="box" size="0.2 0.4 1.2" rgba="0.6 0.1 0.6 1"/>
+    </body>
+    <body name="obstacle_20" pos="8 -1.8 0.6" mocap="true">
+        <geom type="box" size="0.15 0.35 1.2" rgba="0.7 0.2 0.7 1"/>
+    </body>
+    <body name="obstacle_21" pos="9 0 1.2" mocap="true">
+        <geom type="box" size="0.3 0.6 1.2" rgba="0.5 0.1 0.5 1"/>
+    </body>
+    <body name="obstacle_22" pos="8.5 -1 0.5" mocap="true">
+        <geom type="box" size="0.2 0.3 1.2" rgba="0.6 0 0.6 1"/>
+    </body>
+
+   
+
+  
+   
+    <!-- Target -->
+    <body name="target" pos="13 0 0.3" mocap="true">
+        <geom name="target_geom" type="sphere" size="0.3" rgba="1 1 0 1"/>
+    </body>
+</worldbody>
+</mujoco>
