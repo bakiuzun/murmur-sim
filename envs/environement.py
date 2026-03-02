@@ -22,8 +22,12 @@ class UAVEnv:
         self._quat_slice = slice(adr[quat_id], adr[quat_id] + dim[quat_id])
         self._accel_slice = slice(adr[accel_id], adr[accel_id] + dim[accel_id])
         self._gyro_slice = slice(adr[gyro_id], adr[gyro_id] + dim[gyro_id])
+        
 
-        self.obs_size = 10  # 4 + 3 + 3
+        self.obs_size = 10  # 4 + 3 + 3.0
+        
+        self.obs_size += 1 # height of the drone 
+
         self.act_size = 4
 
     def _get_obs(self, mjx_data):
@@ -31,14 +35,34 @@ class UAVEnv:
         return jnp.concatenate([
             sd[self._quat_slice],
             sd[self._accel_slice],
-            sd[self._gyro_slice]
+            sd[self._gyro_slice],
+            mjx_data.qpos[2]
         ])
 
+    def gaussian_reward(x,target,sigma):
+        return jnp.exp(-((x - target)**2) / (sigma**2))
+
+
     def _get_reward(self, obs):
-        gyro = obs[7:10]
-        quat = obs[0:4]
-        reward = jnp.where(jnp.any(gyro > 3), -1.0, 0.0)
-        reward += jnp.where(jnp.any(quat >= 1), -1.0, 0.0)
+        # how fast the drone rotates ? 
+        gyro = obs[7:10] 
+        # the rotation of the drone 
+        quat = obs[0:4] 
+        # acceleration du drone 
+        accel = obs[4:7]
+        
+        height = obs[-1]
+
+        r_height = gaussian_reward(height,target=2.0,sigma=0.5)
+        #r_hover = gaussian_reward(accel[2],target=9.81,sigma=2.0)
+        r_upright = gaussian_reward(quat[0],target=1.0,sigma=0.3)
+
+        r_gyro = (gaussian_reward(gyro[0], 0.0, sigma=1.0)
+            + gaussian_reward(gyro[1], 0.0, sigma=1.0)
+            + gaussian_reward(gyro[2], 0.0, sigma=1.0)) / 3.0
+
+
+        reward = 0.4 * r_height + 0.3 * r_upright + 0.3 * r_gyro
         return reward
 
     # ============ Les 2 seuls changements importants ============
