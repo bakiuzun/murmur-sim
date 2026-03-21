@@ -16,14 +16,12 @@
 ## 🌍 Environment Setup (JAX & MuJoCo MJX)
 * **Simulation Frequencies:** The physics engine runs at 500 Hz (dt = 0.002). The drone executes actions every 5 physics steps, resulting in a 100 Hz control loop for the agent.
 * **Action Space:** 4 continuous values corresponding to the 4 motors. The network outputs values between (0, 1), which are then multiplied by 13.0 for simulation control.
-* **Observation Space (Size: 21):**
+* **Observation Space (Size: 19):**
   * Rotation Matrix (9)
   * Accelerometer (3)
   * Gyroscope (3)
   * Z-position (1)
   * X, Y, Z velocities (3)
-  * **Binary State Flags (2):** `is_above_target` and `is_below_target` (represented as `1.0` or `0.0` floats to maintain pure JAX array compatibility). Giving the network explicit "hints" helps it converge faster on when to cut or apply thrust.
-
 ---
 
 ## 🛑 Termination Conditions (Done Flag)
