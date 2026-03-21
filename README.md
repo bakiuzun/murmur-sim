@@ -44,9 +44,7 @@ The current approach rewards the drone based on its frame-by-frame progress towa
 
 ```python
 def compute_reward(obs, previous_obs, config):
-    rotation_obs = obs[0:9]
     height = obs[15]
-    vz = obs[18]
     gyro = obs[12:15]
     prev_height = previous_obs[15]
     
@@ -55,25 +53,17 @@ def compute_reward(obs, previous_obs, config):
     prev_dist = jnp.abs(prev_height - TARGET_HEIGHT)
     curr_dist = jnp.abs(height - TARGET_HEIGHT)
     
-    # 1. Progress Reward (Moving toward target)
     v_max = 10 # 10 meter per second
     dt = 0.002
     batched_vmax = jnp.ones_like(curr_dist) * (v_max*dt)
     progression = (prev_dist - curr_dist)
-    r_progress = config['delta_prog'] * jnp.minimum(progression, batched_vmax)
+    r_progress = config['delta_prog']*jnp.minimum(progression,batched_vmax)
 
-    # 2. Hover Maintenance Reward (Staying at target)
-    pos_bonus = jnp.exp(-4.0 * (curr_dist ** 2))
-    vel_bonus = jnp.exp(-4.0 * (vz ** 2))
-    is_in_hover_zone = jnp.where(curr_dist < 0.25, 1.0, 0.0)
-    
-    r_hover = config['delta_hover'] * (pos_bonus * vel_bonus) * is_in_hover_zone
-
-    # 3. Penalties
     p_angularvel = config['delta_angvel'] * jnp.linalg.norm(gyro)
-    p_crash = jnp.where(height < 0.1, config['delta_crash'], 0)
+
+    p_crash = jnp.where(height < 0.1,config['delta_crash'],0)
     
-    reward = r_progress + r_hover - p_angularvel - p_crash   
+    reward = r_progress - p_angularvel - p_crash   
     return reward
     
     
