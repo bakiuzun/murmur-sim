@@ -66,4 +66,40 @@ def compute_reward(obs, previous_obs, config):
     reward = r_progress - p_angularvel - p_crash   
     return reward
     
+   
+
+THE BEST REWARD SO FAR IS 
+```python
+def compute_reward(obs, previous_obs, config):
+    rotation_obs = obs[0:9]
+    height = obs[15]
+    vz = obs[18]
+    gyro = obs[12:15]
+    lin_vel = obs[16:19]
+    prev_height = previous_obs[15]
     
+    TARGET_HEIGHT = config['target_height']
+    
+    prev_dist = jnp.abs(prev_height - TARGET_HEIGHT)
+    curr_dist = jnp.abs(height - TARGET_HEIGHT)
+    
+    v_max = 10 # 10 meter per second
+    dt = 0.002
+    batched_vmax = jnp.ones_like(curr_dist) * (v_max*dt)
+    progression = (prev_dist - curr_dist)
+    
+    prev_linvel = jnp.linalg.norm(previous_obs[16:19])
+    curr_linvel = jnp.linalg.norm(lin_vel)
+    
+    
+    r_hover = jnp.where(progression < 0.5,1 - progression,0.0) 
+    
+    reward = (
+        config['delta_prog'] * jnp.minimum(progression,batched_vmax)
+        + config['delta_hover'] * r_hover 
+        -config['delta_linvel'] * jnp.sum(jnp.square(curr_linvel))
+        -config['delta_angvel'] * jnp.sum(jnp.square(gyro))
+        #-0.01 * jnp.sum(jnp.square(action - hover_action))
+    )
+    return reward
+```

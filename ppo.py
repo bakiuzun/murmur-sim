@@ -91,8 +91,8 @@ def make_ppo_update(graphdef, tx, clip_eps, num_epochs):
     def ppo_loss(params: nnx.statelib.State, 
                  non_params:nnx.statelib.State, 
                  traj:Transition, 
-                 advantage:jnp.array, 
-                 returns:jnp.array):
+                 advantage:jnp.ndarray, 
+                 returns:jnp.ndarray):
         model = nnx.merge(graphdef, params, non_params)
         _, new_value, new_log_prob = model(traj.obs, action=traj.action)
         ratio = jnp.exp(new_log_prob - traj.log_prob)
@@ -174,11 +174,11 @@ def make_train(config):
     @jax.jit
     def full_train(
         train_state,
-        reset_obs: jnp.array,
-        reset_mjx_data:jnp.array, 
+        reset_obs: jnp.ndarray,
+        reset_mjx_data:jnp.ndarray, 
         rng:jax.random.PRNGKey,
-        internal_step: jnp.array,
-        success_counter:jnp.array):
+        internal_step: jnp.ndarray,
+        success_counter:jnp.ndarray):
 
         def _iteration(carry, _):
             train_state, next_obs, rng,next_mjx_data,internal_step,success_counter = carry
