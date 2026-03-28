@@ -11,7 +11,7 @@ from structs import ModelSpec
 from envs import rewards
 from envs import utils as env_utils
 
-# Load model
+# Load mode
 actorSpec = ModelSpec(
         hidden_sizes=jnp.array([64,64,4]),
         hidden_activation=nnx.relu,
@@ -26,8 +26,10 @@ criticSpec = ModelSpec(
 
 model = ActorCritic(17, 4,actorSpec,criticSpec,nnx.Rngs(0))
 graphdef, params, non_params = nnx.split(model, nnx.Param, ...)
-     
-path = 'baseline_lr0.0003_gm0.99_steps100000000.0.pt' 
+
+
+
+path = 'lin_hov_action_0001_lr0.0003_gm0.99_steps100000000.0.pt' 
 model = load_model(f'checkpoints/{path}', graphdef)
 
 print(f"Model: {model.log_std} ")
@@ -57,6 +59,7 @@ reward_config =   {
     } 
 
 
+
 root = tk.Tk()
 root.title("Drone Dashboard")
 root.geometry("350x300")
@@ -81,47 +84,13 @@ drone_hz = 90
 n_substeps = int( (1 / timestep) / drone_hz) 
 
 
-def compute_reward(obs, previous_obs):
-    rotation_obs = obs[0:9]
-    height = obs[15]
-    vz = obs[18]
-    prev_height = previous_obs[15]
-    
-    TARGET_HEIGHT = 5.0
-    
-    # 1. PROGRESS — scale it up so it's meaningful
-    prev_dist = (prev_height - TARGET_HEIGHT)**2
-    curr_dist = (height - TARGET_HEIGHT)**2
-    
-    # we should not push it too fast 
-    r_progress = (prev_dist - curr_dist)
-   
-    print("gyro = ",obs[12:15])
-
-    reward = r_progress # + r_pos + r_alive + r_steady + r_orientation
-    return reward
-
-
-def compute_reward(obs, previous_obs):
-    rotation_obs = obs[0:9]
-    height = obs[15]
-    vz = obs[18]
-    prev_height = previous_obs[15]
-    
-    TARGET_HEIGHT = 1500
-    
-    # 1. PROGRESS — scale it up so it's meaningful
-
-    prev_dist = (prev_height - TARGET_HEIGHT)**2
-    curr_dist = (height - TARGET_HEIGHT)**2
-     
-    # we should not push it too fast 
-    r_progress = (prev_dist - curr_dist)
-    reward = r_progress # + r_pos + r_alive + r_steady + r_orientation
-    return reward
 
 prev_obs = jnp.zeros(19)
 import time 
+
+prev_act = None 
+
+step_counter = 0 
 
 with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
     mujoco.mj_resetData(mj_model, mj_data)
@@ -139,9 +108,6 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
             mj_data.qpos[2:3],
             mj_data.qvel[0:3]
         ])
-        
-        print(f"Reward: ",compute_reward(obs,prev_obs))
-        #print("Obs: ",obs[15])
         """
         obs_text = (
             f"Reward: {rewards.compute_reward(obs):.4f}\n\n"
@@ -151,21 +117,41 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
             f"Height (z)  : {obs[10]:.2f}"
         )
         """
-        multiplier = 2
+
+        perfect_rotation = jnp.array([1,0,0,0,1,0,0,0,1])
+        p_rotation = 0.01 * jnp.linalg.norm(obs[0:9] - perfect_rotation)
+        target_height = 5.0 
+        height = obs[-4]
+        dif = jnp.abs((height - target_height))
+        
+        prev_linvel = jnp.linalg.norm(prev_obs[16:19])
+        curr_linvel = jnp.linalg.norm(obs[16:19])
+    
         slider.get()
-        current_action_val = base_action*multiplier
 
         # Get action from trained model
         rng, k = jax.random.split(rng)
         action, _, _ = model(obs, k)
         #print("Action: ",action)
+
+        if prev_act is None:
+            prev_act = action 
+
+
+        action_jerk = jnp.sum(jnp.square(action - prev_act))
+        print(f"Action Jerk: {action_jerk} ")
+
+
+        prev_act = action 
+
         mj_data.ctrl[:] = action*13
         #print(obs[-3:])        
-     
+         
         # dans le monde de mujoco je suis a 6 * 0.002 0.012 en step 
         for _ in range(n_substeps):
+            step_counter += 1 
             mujoco.mj_step(mj_model, mj_data)
-
+        
         viewer.sync() # je update le viewer pour quil se met exactement en 0.012 
 
         prev_obs = obs 

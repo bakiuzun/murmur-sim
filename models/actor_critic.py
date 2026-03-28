@@ -19,6 +19,7 @@ class ActorCritic(nnx.Module):
                                                        spec=actor_spec,
                                                        rngs=rngs
                                                        ))
+    
         self.log_std = nnx.Param(jnp.zeros(action_dim))
 
         self.critic = nnx.Sequential(*self._build_model(in_ch=obs_dim,
@@ -46,9 +47,8 @@ class ActorCritic(nnx.Module):
     def __call__(self,x: jnp.array,rng: jax.random.PRNGKey = None,action: jnp.array = None):
         mean = self.actor(x)
         std  = jnp.exp(self.log_std)
-        #std = jnp.array([0.0000]*4)
         dist = distrax.Normal(mean,std)
-         
+        
         # if None then we are taking steps 
         if action is None:
             action = dist.sample(seed=rng)

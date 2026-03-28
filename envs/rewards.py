@@ -1,7 +1,5 @@
 import jax.numpy as jnp
-
-
-
+import jax 
 
 def gaussian_reward(x,target,sigma):
     """
@@ -10,34 +8,40 @@ def gaussian_reward(x,target,sigma):
     return jnp.exp(-((x - target)**2) / ((sigma+1e-8)**2))
 
 
-def compute_reward(obs,reward_config):
-    rotation_obs = obs[0:9]
-    accel_obs = obs[9:12]
-    gyro_obs = obs[12:15]
+
+
+
+def compute_reward(obs, previous_obs,current_actions,previous_actions, config):
     height = obs[15]
-    vz = obs[16]
-
-    TARGET_HEIGHT = reward_config['target_height']
-
-    r_pos = reward_config['height_scale'] * gaussian_reward(x=height,
-                            target=TARGET_HEIGHT,
-                            sigma=reward_config['sigma_height'])
-
-    proximity = jnp.exp(-((height - TARGET_HEIGHT)**2) / ((reward_config['sigma_height']+1e-8)**2))
-
-    # closer -> bigger penalty for being fast 
-    r_vz =  -reward_config['vz_scale'] * vz**2 * proximity 
+    gyro = obs[12:15]
+    lin_vel = obs[16:19]
+    prev_height = previous_obs[15]
     
-    r_steady = -reward_config['steady_scale'] * vz**2 
-
-    """
-    r_upright = reward_config['quat_w_scale'] * gaussian_reward(x=quat[0],
-                                target=1,
-                                sigma=reward_config['quat_w_sigma'])
+    TARGET_HEIGHT = config['target_height']
     
-    r_gyro = -reward_config['gyro_scale'] * jnp.sum(gyro**2)
-    """
-    reward = r_pos + r_vz + r_steady + 0 + 0
+    prev_dist = jnp.abs(prev_height - TARGET_HEIGHT)
+    curr_dist = jnp.abs(height - TARGET_HEIGHT)
+    # MONO Race Paper Inspired
+    batched_vmax = jnp.ones_like(curr_dist) * (config['v_max']*config['dt'])
+    progression = (prev_dist - curr_dist)
+
+    # If close to target we reward when it is barely moving 
+    # this can be changed as reward 1 - linear vel OR ang vel 
+    hover = 1 - progression
+    
+
+    actions = jnp.linalg.norm(current_actions - previous_actions,axis=-1)
+
+
+    # squared linalg norm works better if velocity is near 0 then no need huge penalty
+    # if velocity is big now huge penalty 
+    reward = (
+        config['delta_prog'] * jnp.minimum(progression,batched_vmax)
+        + config['delta_hover'] * hover
+        -config['delta_linvel'] * jnp.square(jnp.linalg.norm(lin_vel,axis=-1)) 
+        -config['delta_actions'] * actions
+        -config['delta_angvel'] * jnp.linalg.norm(gyro,axis=-1)
+    )
 
     return reward
 

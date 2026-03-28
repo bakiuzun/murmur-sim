@@ -26,6 +26,7 @@ class TrainState(NamedTuple):
     opt_state: tuple
 
 
+# CURRENTLY NOT USED 
 class EnvState(NamedTuple):
     mjx_data: jnp.ndarray
     obs: jnp.ndarray
