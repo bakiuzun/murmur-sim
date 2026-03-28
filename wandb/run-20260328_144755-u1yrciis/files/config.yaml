@@ -1,0 +1,82 @@
+_wandb:
+    value:
+        cli_version: 0.25.1
+        e:
+            un7y3simvuv8ztq6ylzifqb1l3iz1a4e:
+                codePath: main.py
+                codePathLocal: main.py
+                cpu_count: 14
+                cpu_count_logical: 18
+                disk:
+                    /:
+                        total: "102611623936"
+                        used: "56403685376"
+                email: u.officialdeveloper@gmail.com
+                executable: /home/baki/miniconda3/envs/deepl/bin/python3
+                git:
+                    commit: c9faa1ca0e40d1777cd0cd191c55a94a07701641
+                    remote: https://github.com/bakiuzun/murmur-sim.git
+                host: baki-FLMH-XX
+                memory:
+                    total: "16255803392"
+                os: Linux-6.14.0-37-generic-x86_64-with-glibc2.39
+                program: /home/baki/Documents/murmur-sim/main.py
+                python: CPython 3.11.2
+                root: /home/baki/Documents/murmur-sim
+                startedAt: "2026-03-28T13:47:55.225696Z"
+                writerId: un7y3simvuv8ztq6ylzifqb1l3iz1a4e
+        m: []
+        python_version: 3.11.2
+        t:
+            "1":
+                - 12
+                - 45
+            "2":
+                - 12
+                - 45
+            "3":
+                - 13
+                - 16
+            "4": 3.11.2
+            "5": 0.25.1
+            "12": 0.25.1
+            "13": linux-x86_64
+actor_last_activation:
+    value: null
+base_rng:
+    value: 62
+clip_eps:
+    value: 0.2
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+lr:
+    value: 0.0003
+max_grad_norm:
+    value: 0.5
+model_save_path:
+    value: checkpoints/lin_hov_action_0000_lr0.0003_gm0.99_steps100000000.0.pt
+num_envs:
+    value: 2048
+num_minibatches:
+    value: 32
+num_steps:
+    value: 256
+reward_config:
+    value:
+        delta_actions: 0
+        delta_angvel: 0
+        delta_crash: 10
+        delta_hover: 0.01
+        delta_linvel: 0.001
+        delta_prog: 1
+        dt: 0.002
+        target_height: 5
+        v_max: 10
+target_height:
+    value: 5
+total_timesteps:
+    value: 1e+08
+update_epochs:
+    value: 4

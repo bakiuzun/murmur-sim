@@ -29,7 +29,7 @@ graphdef, params, non_params = nnx.split(model, nnx.Param, ...)
 
 
 
-path = 'lin_hov_action_0001_lr0.0003_gm0.99_steps100000000.0.pt' 
+path = 'baseline.pt' 
 model = load_model(f'checkpoints/{path}', graphdef)
 
 print(f"Model: {model.log_std} ")

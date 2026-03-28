@@ -4,7 +4,7 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # put this BEFORE importing jax
 from algos import ppo
 import utils 
 import itertools
-import os 
+import os
 from flax import nnx 
 #rest 4e-4,5e-4
 lrs = [3e-4]

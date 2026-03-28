@@ -1,0 +1,28 @@
+{
+  "os": "Linux-6.14.0-37-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.2",
+  "startedAt": "2026-03-28T13:47:55.225696Z",
+  "program": "/home/baki/Documents/murmur-sim/main.py",
+  "codePath": "main.py",
+  "codePathLocal": "main.py",
+  "git": {
+    "remote": "https://github.com/bakiuzun/murmur-sim.git",
+    "commit": "c9faa1ca0e40d1777cd0cd191c55a94a07701641"
+  },
+  "email": "u.officialdeveloper@gmail.com",
+  "root": "/home/baki/Documents/murmur-sim",
+  "host": "baki-FLMH-XX",
+  "executable": "/home/baki/miniconda3/envs/deepl/bin/python3",
+  "cpu_count": 14,
+  "cpu_count_logical": 18,
+  "disk": {
+    "/": {
+      "total": "102611623936",
+      "used": "56403685376"
+    }
+  },
+  "memory": {
+    "total": "16255803392"
+  },
+  "writerId": "un7y3simvuv8ztq6ylzifqb1l3iz1a4e"
+}
