@@ -11,7 +11,7 @@ from structs import ModelSpec
 from envs import rewards
 from envs import utils as env_utils
 
-# Load model
+# Load mode
 actorSpec = ModelSpec(
         hidden_sizes=jnp.array([64,64,4]),
         hidden_activation=nnx.relu,
@@ -26,8 +26,10 @@ criticSpec = ModelSpec(
 
 model = ActorCritic(17, 4,actorSpec,criticSpec,nnx.Rngs(0))
 graphdef, params, non_params = nnx.split(model, nnx.Param, ...)
-     
-path = 'no_angvel_hover_001_lr0.0003_gm0.99_steps100000000.0.pt' 
+
+
+
+path = 'lin_hov_action_0001_lr0.0003_gm0.99_steps100000000.0.pt' 
 model = load_model(f'checkpoints/{path}', graphdef)
 
 print(f"Model: {model.log_std} ")
@@ -86,6 +88,8 @@ n_substeps = int( (1 / timestep) / drone_hz)
 prev_obs = jnp.zeros(19)
 import time 
 
+prev_act = None 
+
 step_counter = 0 
 
 with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
@@ -120,8 +124,6 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
         height = obs[-4]
         dif = jnp.abs((height - target_height))
         
-        should_hover = jnp.where(dif < 0.5,1,0)
-        
         prev_linvel = jnp.linalg.norm(prev_obs[16:19])
         curr_linvel = jnp.linalg.norm(obs[16:19])
     
@@ -131,6 +133,17 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
         rng, k = jax.random.split(rng)
         action, _, _ = model(obs, k)
         #print("Action: ",action)
+
+        if prev_act is None:
+            prev_act = action 
+
+
+        action_jerk = jnp.sum(jnp.square(action - prev_act))
+        print(f"Action Jerk: {action_jerk} ")
+
+
+        prev_act = action 
+
         mj_data.ctrl[:] = action*13
         #print(obs[-3:])        
          
