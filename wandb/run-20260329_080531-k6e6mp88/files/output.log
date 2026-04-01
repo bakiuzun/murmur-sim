@@ -1,0 +1,135 @@
+Starting PPO.
+Model Initialized !
+Traceback (most recent call last):
+  File "/home/baki/Documents/murmur-sim/main.py", line 68, in <module>
+    ppo.make_train(config,ckpt_path=ckpt_path)()
+  File "/home/baki/Documents/murmur-sim/algos/ppo.py", line 297, in train
+    mjx_data,obs,intern_step,success_counter,previous_obs = env.reset()
+                                                            ^^^^^^^^^^^
+  File "/home/baki/Documents/murmur-sim/envs/uav.py", line 56, in reset
+    mjx_data = mjx.forward(self.mjx_model, mjx_data)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/forward.py", line 63, in wrapper
+    res = fn(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/forward.py", line 440, in forward
+    d = fwd_position(m, d)
+        ^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/forward.py", line 63, in wrapper
+    res = fn(*args, **kwargs)
+          ^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/forward.py", line 73, in fwd_position
+    d = smooth.kinematics(m, d)
+        ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/smooth.py", line 96, in kinematics
+    qpos, xanchor, xaxis, xpos, xquat, xmat = scan.body_tree(
+                                              ^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/scan.py", line 477, in body_tree
+    key_y[key] = _nvmap(f, carry, *f_args)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/scan.py", line 130, in _nvmap
+    return jax.vmap(outer_f, in_axes=in_axes)(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/api.py", line 1210, in vmap_f
+    out_flat, inferred_out_axes = batching.batch(
+                                  ^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/linear_util.py", line 212, in call_wrapped
+    return self.f_transformed(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/batching.py", line 372, in _batch_outer
+    outs, out_dim_srcs, trace = f(tag, in_dims, *in_vals)
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/batching.py", line 391, in _batch_inner
+    outs = f(*in_tracers)
+           ^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/batching.py", line 127, in flatten_fun_for_vmap
+    ans = f(*py_args, **py_kwargs)
+          ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/scan.py", line 128, in outer_f
+    return f(*args)
+           ^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/smooth.py", line 92, in fn
+    mat = math.quat_to_mat(quat)
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/mujoco/mjx/_src/math.py", line 191, in quat_to_mat
+    q[0, 0] + q[1, 1] - q[2, 2] - q[3, 3],
+    ~~~~~~~~^~~~~~~~~
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 1146, in op
+    return getattr(self.aval, f"_{name}")(self, *args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/numpy/array_methods.py", line 609, in deferring_binary_op
+    return binary_op(*args)
+           ^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/numpy/ufunc_api.py", line 182, in __call__
+    return call(*args)
+           ^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 259, in cache_miss
+    executable, pgle_profiler, const_args) = _run_python_pjit(
+                                             ^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 145, in _run_python_pjit
+    out_flat = jit_p.bind(*args_flat, **p.params)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 632, in bind
+    return self._true_bind(*args, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 648, in _true_bind
+    return self.bind_with_trace(prev_trace, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 660, in bind_with_trace
+    return trace.process_primitive(self, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/batching.py", line 260, in process_primitive
+    val_out, dim_out = fancy_primitive_batchers[p](
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 1491, in _pjit_batcher
+    vals_out = jit_p.bind(
+               ^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 632, in bind
+    return self._true_bind(*args, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 648, in _true_bind
+    return self.bind_with_trace(prev_trace, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 660, in bind_with_trace
+    return trace.process_primitive(self, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 1205, in process_primitive
+    return primitive.impl(*args, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 1273, in _pjit_call_impl
+    return xc._xla.pjit(
+           ^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 1249, in call_impl_cache_miss
+    out_flat, compiled, pgle_profiler, const_args = _pjit_call_impl_python(
+                                                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 1202, in _pjit_call_impl_python
+    compiled = computation.compile()
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 2510, in compile
+    executable = UnloadedMeshExecutable.from_hlo(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 3056, in from_hlo
+    xla_executable = _cached_compilation(
+                     ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 2837, in _cached_compilation
+    xla_executable = compiler.compile_or_get_cached(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 478, in compile_or_get_cached
+    return _compile_and_write_cache(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 746, in _compile_and_write_cache
+    executable = backend_compile_and_load(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/profiler.py", line 359, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 362, in backend_compile_and_load
+    return backend.compile_and_load(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

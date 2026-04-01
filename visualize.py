@@ -27,11 +27,10 @@ criticSpec = ModelSpec(
 model = ActorCritic(17, 4,actorSpec,criticSpec,nnx.Rngs(0))
 graphdef, params, non_params = nnx.split(model, nnx.Param, ...)
 
+path = "rdmenv_quatrad01_lr0.0003_gm0.99_steps100000000.0.pt"
 
-
-path = 'baseline.pt' 
+path = "mt.pt"
 model = load_model(f'checkpoints/{path}', graphdef)
-
 print(f"Model: {model.log_std} ")
 # Setup MuJoCo (pas MJX, le vrai renderer)
 mj_model = mujoco.MjModel.from_xml_path('drone_models/skydio_x2/scene.xml') 
@@ -49,48 +48,19 @@ gyro_slice = slice(adr[gyro_id], adr[gyro_id] + dim[gyro_id])
 
 rng = jax.random.PRNGKey(0)
 i = 0
-
-
-reward_config =   {
-        "height_scale": 1.0, "sigma_height": 0.5,
-        "vz_scale": 0.1, "steady_scale": 0.1,
-        "quat_w_scale": 0.0, "quat_w_sigma": 0.5,
-        "gyro_scale": 0.0,'target_height': 1.0,
-    } 
-
-
-
-root = tk.Tk()
-root.title("Drone Dashboard")
-root.geometry("350x300")
-root.attributes('-topmost', True) # Keeps the GUI on top of the MuJoCo window
-
-# Labels for Obs
-tk.Label(root, text="Observation Values:", font=("Arial", 18, "bold")).pack(pady=5)
-obs_var = tk.StringVar()
-obs_label = tk.Label(root, textvariable=obs_var, justify="left", font=("Courier", 18))
-obs_label.pack(pady=5)
-
-# Slider for Multiplier
-tk.Label(root, text="Action Multiplier:", font=("Arial", 18, "bold")).pack(pady=10)
-slider = tk.Scale(root, from_=0.0, to=5.0, resolution=1., orient="horizontal", length=250)
-slider.set(1.0) # Default to 1x
-slider.pack()
-
 base_action = 3.2495625
-
 timestep = mj_model.opt.timestep # 0.002 Hz -> 1/
-drone_hz = 90 
-n_substeps = int( (1 / timestep) / drone_hz) 
-
-
+drone_hz = 100 
+n_substeps = int( (1 / timestep) / drone_hz)
+tau = 0.0
+# if alpha = 1 -> we take directly the output 
+alpha = timestep / (tau + timestep) # how fast we update 
 
 prev_obs = jnp.zeros(19)
-import time 
-
 prev_act = None 
-
 step_counter = 0 
+
+current_ctrl = jnp.zeros(4)
 
 with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
     mujoco.mj_resetData(mj_model, mj_data)
@@ -108,61 +78,27 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
             mj_data.qpos[2:3],
             mj_data.qvel[0:3]
         ])
-        """
-        obs_text = (
-            f"Reward: {rewards.compute_reward(obs):.4f}\n\n"
-            f"Quat (wxyz): {obs[0]:.2f}, {obs[1]:.2f}, {obs[2]:.2f}, {obs[3]:.2f}\n"
-            f"Accel (xyz) : {obs[4]:.2f}, {obs[5]:.2f}, {obs[6]:.2f}\n"
-            f"Gyro (xyz)  : {obs[7]:.2f}, {obs[8]:.2f}, {obs[9]:.2f}\n"
-            f"Height (z)  : {obs[10]:.2f}"
-        )
-        """
 
-        perfect_rotation = jnp.array([1,0,0,0,1,0,0,0,1])
-        p_rotation = 0.01 * jnp.linalg.norm(obs[0:9] - perfect_rotation)
-        target_height = 5.0 
-        height = obs[-4]
-        dif = jnp.abs((height - target_height))
-        
-        prev_linvel = jnp.linalg.norm(prev_obs[16:19])
-        curr_linvel = jnp.linalg.norm(obs[16:19])
-    
-        slider.get()
 
-        # Get action from trained model
         rng, k = jax.random.split(rng)
         action, _, _ = model(obs, k)
-        #print("Action: ",action)
 
         if prev_act is None:
             prev_act = action 
-
-
-        action_jerk = jnp.sum(jnp.square(action - prev_act))
-        print(f"Action Jerk: {action_jerk} ")
-
-
-        prev_act = action 
-
-        mj_data.ctrl[:] = action*13
-        #print(obs[-3:])        
-         
-        # dans le monde de mujoco je suis a 6 * 0.002 0.012 en step 
+        
+        output_ctrl = action*13 
         for _ in range(n_substeps):
-            step_counter += 1 
+
+            current_ctrl = alpha * output_ctrl + (1 - alpha) * current_ctrl
+            
+            mj_data.ctrl[:] = current_ctrl
+
             mujoco.mj_step(mj_model, mj_data)
         
         viewer.sync() # je update le viewer pour quil se met exactement en 0.012 
 
         prev_obs = obs 
-        try:
-            root.update()
-        except tk.TclError:
-            print("Error TK")
 
-        start = time.time() 
-        # je vois pas pk il a besoin de dormir 
+
         time.sleep(n_substeps * mj_model.opt.timestep)
-        #time.sleep(0.5)
         i += 1
-        #if i == 2:break 

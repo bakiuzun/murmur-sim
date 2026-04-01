@@ -1,0 +1,75 @@
+Starting PPO.
+Traceback (most recent call last):
+  File "/home/baki/Documents/murmur-sim/main.py", line 68, in <module>
+    ppo.make_train(config,ckpt_path=ckpt_path)()
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/Documents/murmur-sim/algos/ppo.py", line 195, in make_train
+    rng,key1,key2 = jax.random.split(rng,3)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/random.py", line 293, in split
+    return _return_prng_keys(wrapped, _split(typed_key, num))
+                                      ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/random.py", line 279, in _split
+    return prng.random_split(key, shape=shape)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/prng.py", line 591, in random_split
+    return random_split_p.bind(keys, shape=shape)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 632, in bind
+    return self._true_bind(*args, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 648, in _true_bind
+    return self.bind_with_trace(prev_trace, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 660, in bind_with_trace
+    return trace.process_primitive(self, args, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/core.py", line 1205, in process_primitive
+    return primitive.impl(*args, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/prng.py", line 611, in random_split_impl
+    base_arr = random_split_impl_base(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/prng.py", line 617, in random_split_impl_base
+    return split(base_arr)
+           ^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/prng.py", line 616, in <lambda>
+    split = iterated_vmap_unary(keys_ndim, lambda k: impl.split(k, shape))
+                                                     ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/prng.py", line 1140, in threefry_split
+    return _threefry_split(key, shape)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 259, in cache_miss
+    executable, pgle_profiler, const_args) = _run_python_pjit(
+                                             ^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 142, in _run_python_pjit
+    out_flat, compiled, profiler, const_args = _pjit_call_impl_python(
+                                               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/pjit.py", line 1202, in _pjit_call_impl_python
+    compiled = computation.compile()
+               ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 2510, in compile
+    executable = UnloadedMeshExecutable.from_hlo(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 3056, in from_hlo
+    xla_executable = _cached_compilation(
+                     ^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 2837, in _cached_compilation
+    xla_executable = compiler.compile_or_get_cached(
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 478, in compile_or_get_cached
+    return _compile_and_write_cache(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 746, in _compile_and_write_cache
+    executable = backend_compile_and_load(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/profiler.py", line 359, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/baki/miniconda3/envs/deepl/lib/python3.11/site-packages/jax/_src/compiler.py", line 362, in backend_compile_and_load
+    return backend.compile_and_load(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
