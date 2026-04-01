@@ -1,0 +1,25 @@
+Starting PPO.
+Model Initialized !
+Traceback (most recent call last):
+  File "/users/nfs/Etu1/21400271/murmur-sim/main.py", line 99, in <module>
+    ppo.make_train(config,ckpt_path=None)()
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 315, in train
+    mjx_data,obs,intern_step,success_counter,previous_obs = env.reset(keys)
+                                                            ^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/envs/uav.py", line 87, in reset
+    return jax.vmap(_reset,in_axes=0)(rng)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/envs/uav.py", line 78, in _reset
+    data = DR.randomize(mjx_data,self.DR_config,rng)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/domain_randomization/domain_randomization.py", line 16, in randomize
+    new_qpos = mjx_data.qpos.at[2].set(randomize_height(key))
+                                       ^^^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/domain_randomization/domain_randomization.py", line 5, in randomize_height
+    return jnp.random.randint(key,(1,).shape,minval=0.1,maxval=4.9)
+           ^^^^^^^^^^
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/deprecations.py", line 57, in getattr
+    raise AttributeError(f"module {module!r} has no attribute {name!r}")
+AttributeError: module 'jax.numpy' has no attribute 'random'
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.

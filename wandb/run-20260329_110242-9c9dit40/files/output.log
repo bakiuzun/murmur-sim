@@ -1,0 +1,23 @@
+Starting PPO.
+Model Initialized !
+First Env Reset Done
+Launching the Whole Training!
+Traceback (most recent call last):
+  File "/users/nfs/Etu1/21400271/murmur-sim/main.py", line 102, in <module>
+    ppo.make_train(config,ckpt_path=ckpt_path)()
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 337, in train
+    final_train_state, losses = full_train(
+                                ^^^^^^^^^^^
+jax.errors.JaxRuntimeError: INTERNAL: CpuCallback error calling callback: Traceback (most recent call last):
+  File "/users/nfs/Etu1/21400271/murmur-sim/main.py", line 102, in <module>
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 337, in train
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/traceback_util.py", line 195, in reraise_with_filtered_traceback
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/pjit.py", line 259, in cache_miss
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/pjit.py", line 142, in _run_python_pjit
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/pjit.py", line 1224, in _pjit_call_impl_python
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/profiler.py", line 359, in wrapper
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/interpreters/pxla.py", line 1356, in __call__
+  File "/users/Etu1/21400271/myenv/lib/python3.11/site-packages/jax/_src/callback.py", line 850, in _wrapped_callback
+KeyboardInterrupt:
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.

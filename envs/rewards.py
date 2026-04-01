@@ -9,9 +9,11 @@ def gaussian_reward(x,target,sigma):
 
 
 
-
-
-def compute_reward(obs, previous_obs,current_actions,previous_actions, config):
+def compute_reward(obs, 
+                   previous_obs,
+                   current_actions,
+                   previous_actions,
+                   config):
     height = obs[15]
     gyro = obs[12:15]
     lin_vel = obs[16:19]
@@ -29,18 +31,20 @@ def compute_reward(obs, previous_obs,current_actions,previous_actions, config):
     # this can be changed as reward 1 - linear vel OR ang vel 
     hover = 1 - progression
     
+    xy_vel = lin_vel[0:2]
+    lateral_vel = 1 - jnp.linalg.norm(xy_vel,axis=-1) # reward for not moving laterally
 
     actions = jnp.linalg.norm(current_actions - previous_actions,axis=-1)
-
 
     # squared linalg norm works better if velocity is near 0 then no need huge penalty
     # if velocity is big now huge penalty 
     reward = (
         config['delta_prog'] * jnp.minimum(progression,batched_vmax)
         + config['delta_hover'] * hover
+        + config['delta_lateral_vel'] * lateral_vel
         -config['delta_linvel'] * jnp.square(jnp.linalg.norm(lin_vel,axis=-1)) 
-        -config['delta_actions'] * actions
-        -config['delta_angvel'] * jnp.linalg.norm(gyro,axis=-1)
+        -config['delta_actions'] * jnp.square(actions)
+        -config['delta_angvel'] * jnp.square(jnp.linalg.norm(gyro,axis=-1))
     )
 
     return reward

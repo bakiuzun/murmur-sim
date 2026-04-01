@@ -1,0 +1,28 @@
+Starting PPO.
+Model Initialized !
+First Env Reset Done
+Launching the Whole Training!
+Traceback (most recent call last):
+  File "/users/nfs/Etu1/21400271/murmur-sim/main.py", line 111, in <module>
+    ppo.make_train(config,ckpt_path=None)()
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 362, in train
+    final_train_state, losses = full_train(
+                                ^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 323, in full_train
+    (train_state, _, _), all_losses = jax.lax.scan(
+                                      ^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 294, in _iteration
+    (new_env_state,rng), traj = rollout(graphdef=graphdef,
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 104, in rollout
+    carry,traj_batch = jax.lax.scan(_step,
+                       ^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 44, in _step
+    new_env_state,reward,done, = vmapped_step(current_env_state,
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/users/nfs/Etu1/21400271/murmur-sim/envs/uav.py", line 153, in step
+    new_env_state = EnvState(
+                    ^^^^^^^^^
+TypeError: EnvState.__new__() got an unexpected keyword argument 'previous_ctrls'
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.

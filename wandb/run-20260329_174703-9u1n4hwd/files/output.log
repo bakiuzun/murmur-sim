@@ -1,0 +1,10 @@
+Starting PPO.
+Model Initialized !
+First Env Reset Done
+Traceback (most recent call last):
+  File "/users/nfs/Etu1/21400271/murmur-sim/main.py", line 111, in <module>
+    ppo.make_train(config,ckpt_path=None)()
+  File "/users/nfs/Etu1/21400271/murmur-sim/algos/ppo.py", line 344, in train
+    env_state = EnvState(mjx_data=mjx_data,
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: EnvState.__new__() missing 1 required positional argument: 'prev_ctrls'

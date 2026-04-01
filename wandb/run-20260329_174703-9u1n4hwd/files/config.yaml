@@ -1,0 +1,120 @@
+_wandb:
+    value:
+        cli_version: 0.22.2
+        e:
+            ajrv52r26r9glvzhkdinmignqdrx07as:
+                codePath: main.py
+                codePathLocal: main.py
+                cpu_count: 40
+                cpu_count_logical: 80
+                cudaVersion: "12.9"
+                disk:
+                    /:
+                        total: "219091918848"
+                        used: "93128540160"
+                email: u.officialdeveloper@gmail.com
+                executable: /users/Etu1/21400271/myenv/bin/python3
+                git:
+                    commit: 1da2d8b121d765e7096734a115b784e98ca82c4b
+                    remote: https://github.com/bakiuzun/murmur-sim.git
+                gpu: Tesla V100-SXM2-32GB
+                gpu_count: 4
+                gpu_nvidia:
+                    - architecture: Volta
+                      cudaCores: 5120
+                      memoryTotal: "34359738368"
+                      name: Tesla V100-SXM2-32GB
+                      uuid: GPU-c0388c6e-7fcc-dde8-96c3-dc94f06ca5f6
+                    - architecture: Volta
+                      cudaCores: 5120
+                      memoryTotal: "34359738368"
+                      name: Tesla V100-SXM2-32GB
+                      uuid: GPU-eb05268b-e265-c927-124b-f944b18caf0c
+                    - architecture: Volta
+                      cudaCores: 5120
+                      memoryTotal: "34359738368"
+                      name: Tesla V100-SXM2-32GB
+                      uuid: GPU-ffb1fd41-c0b7-008f-20de-9d7a92b52a3d
+                    - architecture: Volta
+                      cudaCores: 5120
+                      memoryTotal: "34359738368"
+                      name: Tesla V100-SXM2-32GB
+                      uuid: GPU-c2c5b606-4c26-00bb-857d-e5e0eb7eda00
+                host: ppti-gpu-4
+                memory:
+                    total: "1215864131584"
+                os: Linux-6.1.0-44-amd64-x86_64-with-glibc2.36
+                program: /users/nfs/Etu1/21400271/murmur-sim/main.py
+                python: CPython 3.11.2
+                root: /users/nfs/Etu1/21400271/murmur-sim
+                startedAt: "2026-03-29T15:47:03.181491Z"
+                writerId: ajrv52r26r9glvzhkdinmignqdrx07as
+        m: []
+        python_version: 3.11.2
+        t:
+            "1":
+                - 12
+                - 45
+            "2":
+                - 12
+                - 45
+            "3":
+                - 13
+                - 16
+            "4": 3.11.2
+            "5": 0.22.2
+            "12": 0.22.2
+            "13": linux-x86_64
+DR_config:
+    value:
+        motor_tau: 0.025
+        motor_tau_variation: 0.3
+        nominal_thrust: 13
+        quat_angle: 0.3
+        randomize_angvel: true
+        randomize_height: true
+        randomize_linvel: true
+        randomize_motor_constant: true
+        randomize_quat: true
+        randomize_thrust: true
+        thrust_variation: 0.1
+actor_last_activation:
+    value: null
+base_rng:
+    value: 62
+clip_eps:
+    value: 0.2
+gae_lambda:
+    value: 0.95
+gamma:
+    value: 0.99
+lr:
+    value: 0.0003
+max_grad_norm:
+    value: 0.5
+model_save_path:
+    value: checkpoints/baseline_2_lr0.0003_gm0.99_steps100000000.0.pt
+num_envs:
+    value: 2048
+num_minibatches:
+    value: 32
+num_steps:
+    value: 256
+reward_config:
+    value:
+        delta_actions: 0.002
+        delta_angvel: 0
+        delta_crash: 10
+        delta_hover: 0.01
+        delta_lateral_vel: 0.01
+        delta_linvel: 0.001
+        delta_prog: 1
+        dt: 0.002
+        target_height: 5
+        v_max: 10
+target_height:
+    value: 5
+total_timesteps:
+    value: 1e+08
+update_epochs:
+    value: 4
