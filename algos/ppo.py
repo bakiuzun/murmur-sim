@@ -5,26 +5,31 @@ from flax import nnx
 import optax 
 from models import ActorCritic 
 import utils 
-from structs import Transition,ModelSpec,TrainState 
+from structs import Transition,ModelSpec,TrainState,EnvState
 from eval import metrics
 
 def rollout(graphdef,
-            train_state,
-            env,
-            obs,
-            mjx_data,
-            num_steps,
-            rng,
-            internal_step,
-            success_counter,
-            previous_obs,
-            previous_act,
-            reset_obs,
-            reset_mjx_data):
+            train_state: TrainState,
+            env_state: EnvState,
+            env: UAVEnv,
+            num_steps: int,
+            rng):
+    
     model = nnx.merge(graphdef,train_state.params,train_state.non_params)
     
+    vmapped_step = jax.vmap(env.step,in_axes=(0,0))
+    vmapped_randomize = jax.vmap(env.randomize,in_axes=(0,0))
+
+    total_envs = len(env_state.obs)
+    keyss = jax.random.split(rng,total_envs)
+        
+    base_mjx_data = env.base_reset()
+    batched_base_mjx_data = jax.tree.map(lambda x: jnp.stack([x] * len(env_state.obs)), base_mjx_data)
+    reset_mjx_data,reset_obs,DR_dict = vmapped_randomize(batched_base_mjx_data,keyss)
+
+    reset_tau = DR_dict['motor_tau']
+    reset_thrust_coeff = DR_dict['thrust_coeff']
     
-    vmapped_step = jax.vmap(env.step,in_axes=(0,0,0,0,0,0))
 
     def auto_reset(done, current_state, reset_state):
         return jax.tree.map(
@@ -32,39 +37,78 @@ def rollout(graphdef,
             current_state, reset_state
     )
     def _step(carry,_):
-        obs,mjx_data,rng,internal_step,success_counter,previous_obs,previous_act = carry
+        current_env_state, rng, = carry
         rng,k1 = jax.random.split(rng,2)
-
-        action,value,log_prob = model(obs,k1)
+        action,value,log_prob = model(current_env_state.obs,k1)
                 
-        next_mjx_data, next_obs,reward,done,next_internal_step,next_success_counter,next_previous_obs,next_previous_act = vmapped_step(mjx_data,
-                                                                               action,
-                                                                               internal_step,
-                                                                               success_counter,
-                                                                               previous_obs,
-                                                                               previous_act)
+        new_env_state,reward,terminated,truncated = vmapped_step(current_env_state,
+                                                  action)
         
-        
-        next_obs = auto_reset(done, next_obs, reset_obs)
-        next_previous_obs = auto_reset(done,next_previous_obs,reset_obs)
-        next_mjx_data = auto_reset(done, next_mjx_data, reset_mjx_data)
-        next_internal_step = jnp.where(done, 0.0, next_internal_step)
-        next_success_counter = jnp.where(done,0.0,next_success_counter)
-        next_previous_act = auto_reset(done,next_previous_act,jnp.zeros_like(next_previous_act))
+        # either 1 or 0
+        done = jnp.maximum(terminated,truncated)
 
+        new_obs = auto_reset(done, 
+                             new_env_state.obs, 
+                             reset_obs)
+
+        new_previous_obs = auto_reset(done,
+                                      new_env_state.prev_obs,
+                                      reset_obs)
+        
+        new_mjx_data = auto_reset(done,
+                                   new_env_state.mjx_data,
+                                   reset_mjx_data)
+        
+        new_previous_act = auto_reset(done,
+                                      new_env_state.prev_actions,
+                                      jnp.zeros_like(new_env_state.prev_actions))
+
+
+        new_previous_ctrl = auto_reset(done,
+                                       new_env_state.prev_ctrls,
+                                       jnp.zeros_like(new_env_state.prev_ctrls)) 
+
+        new_tau =  auto_reset(done, 
+                              new_env_state.tau,
+                              reset_tau)
+
+
+        new_trust_coeff =  auto_reset(done, 
+                              new_env_state.thrust_coeff,
+                              reset_thrust_coeff)
+
+
+        new_internal_step = jnp.where(done, 0.0, new_env_state.internal_step)
+        new_success_counter = jnp.where(done,0.0,new_env_state.success_counter)
+        
+        # we care only about termination 
+        # if termination then we cut off the next value
+        # in GAE computation
+        # next value is present IF it's time limit
         transition = Transition(
-                        done = done,
+                        terminated = terminated,
                         action=action,
                         log_prob=log_prob,
                         value=value,
                         reward=reward,
-                        obs=obs)
+                        obs=current_env_state.obs) # We store the action we did FOR THIS obs 
 
-        return (next_obs,next_mjx_data,rng,next_internal_step,next_success_counter,next_previous_obs,next_previous_act),transition
+        returned_env_state = EnvState(
+            mjx_data=new_mjx_data,
+            obs=new_obs,
+            prev_obs=new_previous_obs,
+            prev_actions=new_previous_act,
+            prev_ctrls=new_previous_ctrl,
+            internal_step=new_internal_step,
+            success_counter=new_success_counter,
+            tau=new_tau,
+            thrust_coeff=new_trust_coeff
+        )
+        return (returned_env_state,rng),transition
 
 
     carry,traj_batch = jax.lax.scan(_step,
-                                    (obs,mjx_data,rng,internal_step,success_counter,previous_obs,previous_act), 
+                                    (env_state,rng), 
                                     None,length=num_steps)
 
     return carry,traj_batch    
@@ -79,7 +123,7 @@ def calculate_gae(graphdef,
         lastgaelam,next_value = carry_gae
             
         # mask = 0 if the episode has been finished else 1
-        mask = 1.0 - transition.done 
+        mask = 1.0 - transition.terminated
 
         delta = transition.reward + config['gamma'] * next_value * mask - transition.value
 
@@ -119,7 +163,6 @@ def make_ppo_update(graphdef, tx, config):
                  mb_returns: jnp.array):
         model = nnx.merge(graphdef, params, non_params)
         
-        # mb_traj arrays are now perfectly 2D: (minibatch_size, features)
         _, new_value, new_log_prob = model(mb_traj.obs, action=mb_traj.action)
 
         ratio = jnp.exp(new_log_prob - mb_traj.log_prob)
@@ -217,64 +260,61 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
 
     print("Model Initialized !")
     
+    num_steps = config['num_steps']
+    num_updates = int(config['total_timesteps'] // num_steps // config['num_envs'])
+    total_optimizer_steps = num_updates * config['update_epochs'] * config['num_minibatches']
+
+    lr_schedule = optax.cosine_decay_schedule(
+        init_value=config['lr'],
+        decay_steps=total_optimizer_steps,
+        alpha=0.1  # final lr = 10% of initial
+    )
     graphdef,params,non_params = nnx.split(model,nnx.Param,...)
     tx = optax.chain(
             optax.clip_by_global_norm(config['max_grad_norm']),
-            optax.adamw(config['lr']),
+            optax.adamw(lr_schedule),
     )
 
-    if ckpt_path is not None:
-        path = 'baseline_hover_lr0.0003_gm0.99_steps100000000.0.pt' 
-        model = utils.load_model(f'checkpoints/{path}', graphdef)
+    if ckpt_path is not None:model = utils.load_model(f'checkpoints/{ckpt_path}', graphdef)
 
     
     opt_state = tx.init(params)
-
     train_state = TrainState(params,non_params,opt_state)
-    
-    num_steps = config['num_steps']
-    num_updates = int(config['total_timesteps'] // num_steps // config['num_envs'])
-    
     ppo_update = make_ppo_update(graphdef,tx,config)
 
     
     @jax.jit
     def full_train(
-        train_state,
-        reset_obs: jnp.array,
-        reset_mjx_data:jnp.array, 
-        rng:jax.random.PRNGKey,
-        internal_step: jnp.array,
-        success_counter:jnp.array,
-        previous_obs: jnp.array,
-        previous_act: jnp.array):
+        train_state, 
+        env_state: EnvState,
+        rng:jax.random.PRNGKey):
+
 
         def _iteration(carry, _):
-            train_state, next_obs, rng,next_mjx_data,internal_step,success_counter,next_previous_obs,next_previous_act  = carry
+            train_state,curr_env_state, rng,  = carry
             rng, k1, k2,k3 = jax.random.split(rng, 4)
 
             # 1. Rollout
-            carry_roll, traj = rollout(graphdef,train_state, env, next_obs,
-                                       next_mjx_data, num_steps, rng=k1,internal_step=internal_step,
-                                       reset_obs=reset_obs,reset_mjx_data=reset_mjx_data,
-                                       success_counter=success_counter,
-                                       previous_obs=next_previous_obs,
-                                       previous_act=next_previous_act)
-            next_obs = carry_roll[0]
-            next_mjx_data = carry_roll[1]
-            internal_step = carry_roll[-4]
-            success_counter = carry_roll[-3]
-            next_previous_obs = carry_roll[-2]
-            next_previous_act = carry_roll[-1]
+            (new_env_state,rng), traj = rollout(graphdef=graphdef,
+                                       train_state=train_state, 
+                                       env_state=curr_env_state,
+                                       env=env, 
+                                       num_steps=num_steps, 
+                                       rng=k1)
+            
             
             # 2. GAE
-            advantage, returns = calculate_gae(graphdef,train_state, next_obs, traj, k2,config)
+            advantage, returns = calculate_gae(graphdef,
+                                               train_state,
+                                               new_env_state.obs,
+                                                traj,
+                                                k2,config)
 
             # 3. PPO epochs
             train_state, losses = ppo_update(train_state, traj, advantage, returns,k3)
 
 
-            x = metrics.compute_metrics(next_mjx_data,
+            x = metrics.compute_metrics(new_env_state.mjx_data,
                                         traj.obs,
                                         traj.action,
                                         returns,
@@ -282,11 +322,11 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
   
             jax.debug.callback(utils.log_metrics,x)
 
-            return (train_state, next_obs, rng,next_mjx_data,internal_step,success_counter,next_previous_obs,next_previous_act), losses[-1]
+            return (train_state,new_env_state, rng), losses[-1]
 
-        (train_state, _, _,_,_,_,_,_), all_losses = jax.lax.scan(
+        (train_state, _, _), all_losses = jax.lax.scan(
             _iteration,
-            (train_state, reset_obs, rng,reset_mjx_data,internal_step,success_counter,previous_obs,previous_act),
+            (train_state,env_state,rng),
             None,
             length=num_updates
         )
@@ -294,28 +334,29 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
         return train_state, all_losses
 
     def train():
-        mjx_data,obs,intern_step,success_counter,previous_obs = env.reset()
+
+        keys = jax.random.split(rng,config['num_envs'])
+    
+        
+        mjx_data,obs,intern_step,success_counter,previous_obs,tau,thrust_coeff = env.reset(keys)
         print("First Env Reset Done ")
 
-        batched_mjx_data = jax.tree.map(
-            lambda  x: jnp.stack([x]*config['num_envs']),mjx_data 
-        )
-        batched_obs = jnp.stack([obs]*config['num_envs'])
-        batched_previous_obs = jnp.stack([previous_obs]*config['num_envs'])
-        batched_previous_act = jnp.zeros((config['num_envs'],env.act_size))
-        batched_internal_step = jnp.stack([intern_step]*config['num_envs'])
-        batched_success_counter = jnp.stack([success_counter]*config['num_envs'])
-
+        env_state = EnvState(mjx_data=mjx_data,
+                             obs=obs,
+                             prev_obs=previous_obs,
+                             prev_actions=jnp.zeros((config['num_envs'],env.act_size)),
+                             prev_ctrls=jnp.zeros((config['num_envs'],env.act_size)),
+                             internal_step=intern_step,
+                             success_counter=success_counter,
+                             tau=tau,
+                             thrust_coeff=thrust_coeff)
+        
         print("Launching the Whole Training!")
         final_train_state, losses = full_train(
             train_state,
-            batched_obs,
-            batched_mjx_data,
+            env_state,
             key2,
-            batched_internal_step,
-            batched_success_counter,
-            batched_previous_obs,
-            batched_previous_act
+
         )
 
 
@@ -331,22 +372,3 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
 
     return train
 
-
-
-if __name__ == "__main__":
-    config = {
-        "lr": 3e-4,
-        "num_envs": 2048,
-        "num_steps": 256,
-        "total_timesteps": 2e8,
-        "update_epochs": 4,
-        'num_minibatches': 32,
-        "gamma": 0.99,
-        "gae_lambda": 0.95,
-        "clip_eps": 0.2,
-        "max_grad_norm": 0.5,
-    }
-    utils.init_wandb(config)
-
-    make_train(config)()
-    

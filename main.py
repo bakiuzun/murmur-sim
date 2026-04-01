@@ -19,26 +19,70 @@ without any it does shitty things
 so we going with lin vel + hover reward 
 """
 
-reward_presets = {
-    "lin_hov_action_0000": {
+"""
+"baseline": {
         'target_height': 5.0, 
         'delta_angvel': 0.000,
         'delta_linvel': 0.001,
         'delta_prog': 1.0,
-        'delta_actions': 0.000,
+        'delta_actions': 0.001,
+        'delta_crash': 10.0,
+        'delta_hover': 0.01,
+        'v_max': 10.0,
+        'dt': 0.002 # Mujoco env
+}
+
+'baseline_2': {
+        'target_height': 5.0, 
+        'delta_angvel': 0.000,
+        'delta_linvel': 0.001,
+        'delta_prog': 1.0,
+        'delta_actions': 0.002,
+        'delta_lateral_vel': 0.01,
         'delta_crash': 10.0,
         'delta_hover': 0.01,
         'v_max': 10.0,
         'dt': 0.002 # Mujoco env
     },
-} 
+}
+"""
 
-# TRUE -> check if curr dist is < 0.5 of target
-# the other -> 1 - prog so when prog is tiny we get reward
+reward_presets = {
+    'motorteau0025': {
+        'target_height': 5.0, 
+        'delta_angvel': 0.001, # not even helping i think
+        'delta_linvel': 0.001,
+        'delta_prog': 1.0,
+        'delta_actions': 0.002,
+        'delta_lateral_vel': 0.01,
+        'delta_crash': 10.0,
+        'delta_hover': 0.01,
+        'v_max': 10.0,
+        'dt': 0.002 # Mujoco env
+    },
+}  
 
 
-ckpt_path = None
 
+DR_config = {
+    'randomize_height': True,
+    'randomize_quat': True,
+    'randomize_linvel': True,
+    'randomize_angvel': True,
+    'randomize_thrust': False,
+    'randomize_motor_constant': False,
+    'nominal_thrust': 13.0,
+    'thrust_variation': 0.0, # [13 - 0.1*13,13 + 0.1*13]
+    'motor_tau': 0.025,
+    'motor_tau_variation': 0.0, # [0.3,0.7]
+    'quat_angle': 0.3, # 1 rad ~ 50 degree 
+    'angvel_val': 0.05,
+    'linvel_val': 0.5
+}
+
+
+""" 
+"""
 
 
 for lr, total_steps, gm, (reward_name, reward_config) in itertools.product(
@@ -58,6 +102,7 @@ for lr, total_steps, gm, (reward_name, reward_config) in itertools.product(
         'num_minibatches': 32,
         "reward_config": reward_config,
         'target_height': reward_config['target_height'],
+        'DR_config':DR_config,
         'base_rng': 62,
         'actor_last_activation': None,
         'model_save_path': f"checkpoints/{reward_name}_lr{lr}_gm{gm}_steps{total_steps}.pt" 
@@ -65,7 +110,7 @@ for lr, total_steps, gm, (reward_name, reward_config) in itertools.product(
 
     run_name = f"{reward_name}_lr{lr}_gm{gm}_steps{total_steps}"
     utils.init_wandb(config, name=run_name)
-    ppo.make_train(config,ckpt_path=ckpt_path)()
+    ppo.make_train(config,ckpt_path=None)()
     utils.finish_wandb()
 
 
