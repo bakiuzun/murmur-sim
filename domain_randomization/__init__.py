@@ -1,1 +1,1 @@
-from .domain_randomization import randomize 
+from .domain_randomization import randomize,randomize_waypoints

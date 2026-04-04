@@ -16,5 +16,6 @@ def quat_to_rotmat(q):
 
 
 
-
-
+def world_to_body(rot_matrix, world_vel):
+    rot_matrix = rot_matrix.reshape(3, 3)
+    return rot_matrix.T @ world_vel
