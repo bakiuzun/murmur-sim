@@ -2,3 +2,4 @@ __pycache__/
 wandb/
 *.pyc
 MUJOCO_LOG.TXT
+pyrightconfig.json
