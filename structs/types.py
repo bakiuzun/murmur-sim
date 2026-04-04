@@ -49,3 +49,5 @@ class EnvState(NamedTuple):
     # nominal thrust coeff is 13.0 but we randomize it after each episode
     thrust_coeff: float
 
+    waypoints: jnp.ndarray
+

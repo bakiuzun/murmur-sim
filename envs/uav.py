@@ -7,6 +7,10 @@ from .rewards import compute_reward
 from . import utils 
 from structs import EnvState
 import domain_randomization as DR
+import time 
+import mujoco_warp as mjw 
+
+
 
 class UAVEnv:
     def __init__(self,config, drone_model_path='drone_models/skydio_x2/scene.xml'):
@@ -32,30 +36,36 @@ class UAVEnv:
         velocity_size = 3 
         gyro_size = 3
         height_drone_size = 1 
-        self.obs_size = rotate_mat_size + accel_size + velocity_size + height_drone_size + gyro_size
+        waypoints_dist = 3
+        self.obs_size = rotate_mat_size + accel_size + velocity_size + height_drone_size + gyro_size + waypoints_dist
         self.act_size = 4 # each motor thrust
 
         self.dt = 0.002
+
+
+
         
 
-    def _get_obs(self, mjx_data):
+    def _get_obs(self, mjx_data,waypoints):
         sd = mjx_data.sensordata
 
         rotation_matrice = utils.quat_to_rotmat(sd[self._quat_slice])
+        dist_to_waypoints = waypoints - mjx_data.qpos[:3]
+        body_frame_waypoints = utils.world_to_body(rotation_matrice,dist_to_waypoints)
+
         return jnp.concatenate([
-            rotation_matrice, # [0,8] 8 included
-            sd[self._accel_slice], # [9,12] 12 included
-            sd[self._gyro_slice], # [12,14] 15 included
+            rotation_matrice, # [0,1,2,...,7,8] 8 included
+            sd[self._accel_slice], # [9,10,11,12] 12 included
+            sd[self._gyro_slice], # [12,13,14] 15 included
             mjx_data.qpos[2:3], # [15] only height
-            mjx_data.qvel[0:3] # Z  # [16,18] 18 included
+            mjx_data.qvel[0:3], # Z  # [16,17,18] 18 included,
+            body_frame_waypoints # waypoints dist [19,20,21] 3 
         ])
 
     
     def base_reset(self):
         mj_data = mujoco.MjData(self.mj_model)
-        mjx_data = mjx.put_data(self.mj_model, mj_data)
-
-        
+        mjx_data = mjx.put_data(self.mj_model, mj_data)        
         return mjx_data
     
     def randomize(self,base_mjx_data,rng):
@@ -65,8 +75,10 @@ class UAVEnv:
 
         mjx_data = DR_dict['mjx_data']
         mjx_data = mjx.forward(self.mjx_model, mjx_data)
-            
-        obs = self._get_obs(mjx_data)
+        
+        waypoints = DR_dict['waypoints']
+
+        obs = self._get_obs(mjx_data,waypoints)
         
         return mjx_data,obs,DR_dict
         
@@ -84,14 +96,19 @@ class UAVEnv:
             data = DR_dict['mjx_data']
             data = mjx.forward(self.mjx_model, data)
             
-            obs = self._get_obs(data)
+            waypoints = DR_dict['waypoints']
+            
+            obs = self._get_obs(data,waypoints)
+
             previous_obs = obs
             success_counter = 0 # NOT USED!
             _internal_step = jnp.float32(0.0)
 
             tau = DR_dict['motor_tau']
             thrust_coeff = DR_dict['thrust_coeff'] 
-            return data, obs,_internal_step,success_counter,previous_obs,tau,thrust_coeff  # retourne le state, pas self.xxx = 
+            waypoints = DR_dict['waypoints']
+
+            return data, obs,_internal_step,success_counter,previous_obs,tau,thrust_coeff,waypoints  # retourne le state, pas self.xxx = 
 
         return jax.vmap(_reset,in_axes=0)(rng)
     
@@ -110,6 +127,7 @@ class UAVEnv:
         previous_ctrls = env_state.prev_ctrls 
         tau = env_state.tau
         thrust_coeff = env_state.thrust_coeff
+        waypoints = env_state.waypoints
 
         # 0.002 / (0.002+0.025)
         # 0.002 / (0027 )
@@ -129,29 +147,47 @@ class UAVEnv:
         
         (mjx_data,actual_ctrl),_ = jax.lax.scan(
             substep,
-            (mjx_data,previous_ctrls*thrust_coeff),
+            (mjx_data,previous_ctrls),
             None,
             length=5 # 100 Hz when dt = 0.002
         )
-        obs = self._get_obs(mjx_data)
+        obs = self._get_obs(mjx_data,waypoints)
 
         # if we are at step 0 there is no previous action so it is set to actions
         # maybe we will change it place in the future
         previous_actions = jnp.where(_internal_step == 0.0,actions,previous_actions)
 
-        reward = compute_reward(obs,
+        reward,touched_waypoints = compute_reward(obs,
                                 previous_obs,
                                 actions,
                                 previous_actions,
                                 self.reward_config)
+
+
+        new_success_counter = success_counter + touched_waypoints.astype(jnp.float32)
+        
+        # maybe should be changed after thoughh with a key in the state OR in uavenv
+        # virtually impossible to have two time the same... 
+        
+        key = jax.random.fold_in(jax.random.PRNGKey(0),
+                                 success_counter + _internal_step)
+        
+        
+        waypoints = jnp.where(touched_waypoints,
+                              DR.randomize_waypoints(key,
+                                                     z=(1,5)),
+                              waypoints)
+        
+
+
+        # we need to recompute...... cuz maybe the waypoints changed 
+        obs = self._get_obs(mjx_data, waypoints)
         
         rotation_z = obs[8]  # fixed indexing
 
         terminated = jnp.float32(
-              (jnp.abs(mjx_data.qpos[0]) >= 10.0)  # x drift
-            | (jnp.abs(mjx_data.qpos[1]) >= 10.0)   # y drift
-            | (jnp.abs(mjx_data.qpos[2]) >= 15.0)   # z drift
-            | (rotation_z < 0.) # from 1 to -1 if it's 0 this means 90 degre -> about to drop we stop
+            (mjx_data.qpos[2] < 0.1)   # z drift
+            | (rotation_z < 0.0) # 90 degree 
             )   
 
         truncated =  (_internal_step >= 6100)       
@@ -163,10 +199,11 @@ class UAVEnv:
             prev_obs=obs,          # we do this because obs will get updated before computing the reward
             prev_actions=actions,            
             internal_step=_internal_step + 1,
-            success_counter=env_state.success_counter,
+            success_counter=new_success_counter,
             prev_ctrls=actual_ctrl,
             tau=tau,
-            thrust_coeff=thrust_coeff
+            thrust_coeff=thrust_coeff,
+            waypoints=waypoints
         )
 
         return new_env_state,reward,terminated,truncated

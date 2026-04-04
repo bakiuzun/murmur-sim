@@ -5,7 +5,7 @@ def compute_metrics(mjx_data,
                     obs, 
                     actions,
                     reward,
-                    target_height=1.0):
+                    sucess_counter):
 
 
     height = obs[:,15]
@@ -24,14 +24,12 @@ def compute_metrics(mjx_data,
     actions = actions[1:]
 
     return {
-        "height_error": jnp.abs(height - target_height).mean(),
-        "xy_drift": jnp.sqrt(x**2 + y**2).mean(),
-        "vz": jnp.abs(vz).mean(),
-        "vxy": jnp.linalg.norm(vxy),
-        "gyro_norm": jnp.linalg.norm(gyro).mean(),
+        "vxyz": jnp.linalg.norm(lin_vel,axis=-1).mean(),
+        "gyro_norm": jnp.linalg.norm(gyro,axis=-1).mean(),
         "action_mean": actions.mean(),
-        "action_jerk": jnp.sum((actions - prev_action)**2),
-        "reward_mean": reward.mean()
+        "action_jerk": jnp.sum((actions - prev_action)**2,axis=-1).mean(),
+        "reward_mean": reward.mean(),
+        'success_counter': sucess_counter.mean()
     }
 
 

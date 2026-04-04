@@ -29,6 +29,7 @@ def rollout(graphdef,
 
     reset_tau = DR_dict['motor_tau']
     reset_thrust_coeff = DR_dict['thrust_coeff']
+    reset_waypoints = DR_dict['waypoints']
     
 
     def auto_reset(done, current_state, reset_state):
@@ -36,6 +37,7 @@ def rollout(graphdef,
             lambda c, r: jnp.where(done.reshape((-1,) + (1,) * (c.ndim - 1)), r, c),
             current_state, reset_state
     )
+
     def _step(carry,_):
         current_env_state, rng, = carry
         rng,k1 = jax.random.split(rng,2)
@@ -76,6 +78,10 @@ def rollout(graphdef,
         new_trust_coeff =  auto_reset(done, 
                               new_env_state.thrust_coeff,
                               reset_thrust_coeff)
+        
+        new_waypoints = auto_reset(done,
+                                   new_env_state.waypoints,
+                                   reset_waypoints)
 
 
         new_internal_step = jnp.where(done, 0.0, new_env_state.internal_step)
@@ -102,7 +108,8 @@ def rollout(graphdef,
             internal_step=new_internal_step,
             success_counter=new_success_counter,
             tau=new_tau,
-            thrust_coeff=new_trust_coeff
+            thrust_coeff=new_trust_coeff,
+            waypoints=new_waypoints
         )
         return (returned_env_state,rng),transition
 
@@ -318,7 +325,7 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
                                         traj.obs,
                                         traj.action,
                                         returns,
-                                        target_height=config['target_height'])
+                                        sucess_counter=new_env_state.success_counter)
   
             jax.debug.callback(utils.log_metrics,x)
 
@@ -338,7 +345,7 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
         keys = jax.random.split(rng,config['num_envs'])
     
         
-        mjx_data,obs,intern_step,success_counter,previous_obs,tau,thrust_coeff = env.reset(keys)
+        mjx_data,obs,intern_step,success_counter,previous_obs,tau,thrust_coeff,waypoints = env.reset(keys)
         print("First Env Reset Done ")
 
         env_state = EnvState(mjx_data=mjx_data,
@@ -349,7 +356,8 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
                              internal_step=intern_step,
                              success_counter=success_counter,
                              tau=tau,
-                             thrust_coeff=thrust_coeff)
+                             thrust_coeff=thrust_coeff,
+                             waypoints=waypoints)
         
         print("Launching the Whole Training!")
         final_train_state, losses = full_train(
@@ -358,7 +366,6 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
             key2,
 
         )
-
 
         print("Training Finished")
 
@@ -371,4 +378,5 @@ def make_train(config,actorSpec=None,criticSpec=None,ckpt_path=None):
         return "Finished"
 
     return train
+
 
