@@ -31,14 +31,7 @@ Training is handled via PPO. The entire environment and training loop are fully 
 
 ## 🚀 Current Progress & Milestones
 
-### 1. Domain Randomization (Completed ✅)
-Domain randomization has been fully implemented, tested, and is working without issues. It successfully introduces necessary perturbations to improve robustness and sim-to-real transfer. 
-Current randomized parameters include:
-* Waypoints (X, Y, Z dynamic generation)
-* Motor Tau (delay) and Thrust coefficients
-* Height, quaternion angles, linear, and angular velocities
-
-### 2. Waypoint Following & Reward Shaping
+### Waypoint Following & Reward Shaping
 A major challenge was the agent learning to fly at full speed toward a single waypoint without preparing for the next one, leading to unstable flight and crashes. After testing multiple configurations, we found the optimal balance. 
 
 **The Solution:** Massively rewarding progression (`delta_prog: 10.0`) and target reaching (`delta_closetarget: 10.0`) while keeping physics penalties (`delta_linvel`, `delta_angvel`) low enough.

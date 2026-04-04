@@ -6,11 +6,13 @@ import jax.numpy as jnp
 import time
 from flax import nnx
 from models import ActorCritic
-from utils import * 
+from utils import *
+import cv2 
 from structs import ModelSpec
 from envs import rewards
 from envs import utils as env_utils
-import numpy as np 
+import numpy as np
+import warp as wp 
 
 # Load mode
 actorSpec = ModelSpec(
@@ -29,6 +31,9 @@ model = ActorCritic(17, 4,actorSpec,criticSpec,nnx.Rngs(0))
 graphdef, params, non_params = nnx.split(model, nnx.Param, ...)
 
 path = "baseline.pt"
+path = "test_massreward_2.pt"
+
+
 model = load_model(f'checkpoints/{path}', graphdef)
 print(f"Model: {model.log_std} ")
 # Setup MuJoCo (pas MJX, le vrai renderer)
@@ -64,7 +69,11 @@ step_counter = 0
 current_ctrl = jnp.zeros(4)
 
 import time 
-
+img_height = 64
+img_width = 64
+channels = 3
+        
+cpu_renderer = mujoco.Renderer(mj_model, height=img_height, width=img_width)
 
 
 def new_waypoints(x,y,z):
@@ -126,6 +135,14 @@ with mujoco.viewer.launch_passive(mj_model, mj_data) as viewer:
             body_frame
         ])
 
+        cpu_renderer.update_scene(mj_data, camera="fpv")
+        img = cpu_renderer.render()
+
+        
+        img_bgr = cv2.cvtColor(img,cv2.COLOR_RGB2BGR)
+
+        cv2.imshow('drone fpv',img_bgr)
+        cv2.waitKey(1)
 
         rng, k = jax.random.split(rng)
         action, _, _ = model(obs, k)
