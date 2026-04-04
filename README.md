@@ -1,105 +1,122 @@
-# 🚁 murmur-sim
+# murmur-sim v2 
+V1 (hovering + domain randomization)
+V2 (waypoints following) 
 
-**murmur-sim** is an autonomous UAV (drone) simulation project. The primary goal is to train a Reinforcement Learning agent using PPO (via JAX/Flax/Optax) to take off, reach a target altitude (e.g., 2m), and maintain a stable hover with minimal drift.
-
----
+**murmur-sim** is an autonomous UAV (drone) simulation project. The final goal is to have an agent able to understand the world and do the requested task given by a human. First version was hovering, the second version was waypoints following and the v3 is camera integration + LLM/VLM/VLN (whatever that is needed to make it think). The RL algorithm used is PPO for the first 2 version but this can be changed anytime!. I use JAX/Optax which DRASTICALLY increases computation task.
+I did inlcude domain randomization even for the first version just to make it ready for real world deployment.
 
 ## ⚙️ Physics & Hardware Specifications
 * **Total Weight:** 1.325 kg
 * **Gravity:** 9.81 m/s²
 * **Minimal Hover Thrust (Total):** 12.998 N (calculated as 9.81 * 1.325)
 * **Minimal Hover Thrust (Per Motor):** ~3.24 N
-* **Max Force Per Motor:** 13.0 N (scalable up to 51 N)
 
 ---
 
 ## 🌍 Environment Setup (JAX & MuJoCo MJX)
 * **Simulation Frequencies:** The physics engine runs at 500 Hz (dt = 0.002). The drone executes actions every 5 physics steps, resulting in a 100 Hz control loop for the agent.
-* **Action Space:** 4 continuous values corresponding to the 4 motors. The network outputs values between (0, 1), which are then multiplied by 13.0 for simulation control.
-* **Observation Space (Size: 19):**
+* **Action Space:** 4 continuous values corresponding to the 4 motors. The network outputs values that are unbounded, which are then multiplied by 13.0 for simulation control.
+* **Observation Space (Size: 21):**
   * Rotation Matrix (9)
   * Accelerometer (3)
   * Gyroscope (3)
   * Z-position (1)
   * X, Y, Z velocities (3)
----
-
-## 🛑 Termination Conditions (Done Flag)
-To prevent the agent from learning "hacks" or wasting time in unrecoverable states, episodes terminate if any of the following occur:
-* Episode length exceeds 1500 steps.
-* X or Y drift exceeds 15.0m.
-* Z drift exceeds 20.0m.
-* **Inclination limits:** The episode terminates if the drone's Z-axis rotation matrix value drops below 0.0 (indicating an extreme tilt/flip past 90 degrees).
-
+  * Position of the waypoints relative to the drone (3)
 ---
 
 ## 🧠 RL Training & Reward Shaping History
-Training is handled via PPO. The entire environment and training loop are fully vectorized using `jax.lax.scan` and `jax.vmap` for massive parallelization across 2048 environments. Normalizing the advantage proved to be a massive improvement for overall stability. 
+Training is handled via PPO. The entire environment and training loop are fully vectorized using `jax.lax.scan` and `jax.vmap` for massive parallelization across 2048 environments. Normalizing the advantage proved to be a massive improvement for overall stability.
 
-### 🏆 Current Best Reward Function (Progress + Hover Maintenance)
-The current approach rewards the drone based on its frame-by-frame progress toward the target height to encourage smooth ascent. Once it enters a 25cm "hover zone", a Gaussian maintenance reward activates to encourage zero-velocity stabilization. 
-> **Reference:** The progress-based reward structure used in this project is inspired by the paper *MonoRace: Winning Champion-Level Drone Racing with Robust Monocular AI*.
 
-The current approach rewards the drone based on its frame-by-frame progress toward the target height to encourage smooth ascent. The problem is that after reaching the target height there is basically no more reward to get so the drone crashes... I am adding a reward hover and experimenting this to see give him reward just to maintain it's positions. Another thing that could be added is the actions penalty to minimize the action jerk
+## 🚀 Current Progress & Milestones
+
+### 1. Domain Randomization (Completed ✅)
+Domain randomization has been fully implemented, tested, and is working without issues. It successfully introduces necessary perturbations to improve robustness and sim-to-real transfer. 
+Current randomized parameters include:
+* Waypoints (X, Y, Z dynamic generation)
+* Motor Tau (delay) and Thrust coefficients
+* Height, quaternion angles, linear, and angular velocities
+
+### 2. Waypoint Following & Reward Shaping
+A major challenge was the agent learning to fly at full speed toward a single waypoint without preparing for the next one, leading to unstable flight and crashes. After testing multiple configurations, we found the optimal balance. 
+
+**The Solution:** Massively rewarding progression (`delta_prog: 10.0`) and target reaching (`delta_closetarget: 10.0`) while keeping physics penalties (`delta_linvel`, `delta_angvel`) low enough.
+
+#### 🏆 Best Reward Configuration
+```python
+reward_presets = {
+    'best_waypoint_following': {
+        'target_height': 5.0, 
+        'delta_angvel': 0.001, 
+        'delta_linvel': 0.001,
+        'delta_prog': 10.0,
+        'delta_actions': 0.005,
+        'action_threshold': 0.0,
+        'delta_lateral_vel': 0.00,
+        'delta_crash': 1.0,
+        'delta_hover': 0.01,
+        'delta_closetarget': 10.0,
+        'v_max': 10.0,
+        'dt': 0.002 # Mujoco env
+    },  
+}  
+
+DR_config = {
+    'randomize_height': False,
+    'randomize_quat': False,
+    'randomize_linvel': False,
+    'randomize_angvel': False,
+    'randomize_thrust': False,
+    'randomize_motor_constant': False,
+    'randomize_waypoints': True,
+    'waypoints_x': (-5,5),
+    'waypoints_y': (-5,5),
+    'waypoints_z': (1,5), 
+    'nominal_thrust': 13.0,
+    'thrust_variation': 0.0, 
+    'motor_tau': 0.0,
+    'motor_tau_variation': 0.0, 
+    'quat_angle': 0.3, 
+    'angvel_val': 0.05,
+    'linvel_val': 0.5
+}
 
 ```python
-def compute_reward(obs, previous_obs, config):
+import jax.numpy as jnp
+
+def compute_reward(obs, previous_obs, current_actions, previous_actions, config):
     height = obs[15]
-    gyro = obs[12:15]
     prev_height = previous_obs[15]
     
-    TARGET_HEIGHT = config['target_height']
-    
-    prev_dist = jnp.abs(prev_height - TARGET_HEIGHT)
-    curr_dist = jnp.abs(height - TARGET_HEIGHT)
-    
-    v_max = 10 # 10 meter per second
-    dt = 0.002
-    batched_vmax = jnp.ones_like(curr_dist) * (v_max*dt)
-    progression = (prev_dist - curr_dist)
-    r_progress = config['delta_prog']*jnp.minimum(progression,batched_vmax)
-
-    p_angularvel = config['delta_angvel'] * jnp.linalg.norm(gyro)
-
-    p_crash = jnp.where(height < 0.1,config['delta_crash'],0)
-    
-    reward = r_progress - p_angularvel - p_crash   
-    return reward
-    
-   
-
-THE BEST REWARD SO FAR IS 
-```python
-def compute_reward(obs, previous_obs, config):
-    rotation_obs = obs[0:9]
-    height = obs[15]
-    vz = obs[18]
     gyro = obs[12:15]
     lin_vel = obs[16:19]
-    prev_height = previous_obs[15]
+    curr_waypoints_dist = obs[19:22]
+    prev_waypoints_dist = previous_obs[19:22]
+     
+    progression = jnp.linalg.norm(prev_waypoints_dist) - jnp.linalg.norm(curr_waypoints_dist)
     
-    TARGET_HEIGHT = config['target_height']
+    # Bounded max velocity progression
+    batched_vmax = jnp.ones_like(progression) * (config['v_max'] * config['dt'])
     
-    prev_dist = jnp.abs(prev_height - TARGET_HEIGHT)
-    curr_dist = jnp.abs(height - TARGET_HEIGHT)
+    actions = jnp.abs(current_actions - previous_actions)
+    actions = jnp.sum(actions - config['action_threshold'], axis=-1)
     
-    v_max = 10 # 10 meter per second
-    dt = 0.002
-    batched_vmax = jnp.ones_like(curr_dist) * (v_max*dt)
-    progression = (prev_dist - curr_dist)
-    
-    prev_linvel = jnp.linalg.norm(previous_obs[16:19])
-    curr_linvel = jnp.linalg.norm(lin_vel)
-    
-    
-    r_hover = jnp.where(progression < 0.5,1 - progression,0.0) 
-    
+    crash_p = jnp.where(height < 0.1, 1, 0)
+
+    dist_scalar = jnp.linalg.norm(curr_waypoints_dist)
+    close_target_r = jnp.where(dist_scalar < 1., 1, 0)  
+
     reward = (
-        config['delta_prog'] * jnp.minimum(progression,batched_vmax)
-        + config['delta_hover'] * r_hover 
-        -config['delta_linvel'] * jnp.sum(jnp.square(curr_linvel))
-        -config['delta_angvel'] * jnp.sum(jnp.square(gyro))
-        #-0.01 * jnp.sum(jnp.square(action - hover_action))
+        config['delta_prog'] * jnp.minimum(progression, batched_vmax)
+        + config['delta_closetarget'] * close_target_r
+        - config['delta_linvel'] * jnp.square(jnp.linalg.norm(lin_vel, axis=-1)) 
+        - config['delta_actions'] * jnp.maximum(actions, 0)
+        - config['delta_angvel'] * jnp.square(jnp.linalg.norm(gyro, axis=-1))
+        - config['delta_crash'] * crash_p
     )
-    return reward
+
+    return reward, close_target_r
 ```
+
+
