@@ -37,7 +37,7 @@ path = "test_massreward_2.pt"
 model = load_model(f'checkpoints/{path}', graphdef)
 print(f"Model: {model.log_std} ")
 # Setup MuJoCo (pas MJX, le vrai renderer)
-mj_model = mujoco.MjModel.from_xml_path('drone_models/skydio_x2/scene.xml') 
+mj_model = mujoco.MjModel.from_xml_path('drone_models/skydio_x2/env.xml') 
 mj_data = mujoco.MjData(mj_model)
 
 # Sensor slices

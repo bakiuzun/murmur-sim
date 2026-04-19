@@ -9,7 +9,7 @@ from structs import EnvState
 import domain_randomization as DR
 import time 
 import mujoco_warp as mjw 
-
+from mujoco.mjx import create_render_context, render,get_rgb
 
 
 class UAVEnv:
@@ -18,7 +18,9 @@ class UAVEnv:
         self.DR_config = config['DR_config']
         self.mj_model = mujoco.MjModel.from_xml_path(drone_model_path)
         self.mjx_model = mjx.put_model(self.mj_model)
+        self.mjw_model = mjx.put_model(self.mj_model, impl='warp')
         
+
         # Sensor slices — constants, calculés une fois
         quat_id = self.mj_model.sensor('body_quat').id
         accel_id = self.mj_model.sensor('body_linacc').id
@@ -43,8 +45,25 @@ class UAVEnv:
         self.dt = 0.002
 
 
-
+        """
+        # CAMERA PART
         
+        self.fpv_cam_id = self.mj_model.camera('fpv').id
+        self.nworld = config['num_envs']  
+
+        cam_active = [False] * self.mj_model.ncam
+        cam_active[self.fpv_cam_id] = True
+
+        self.rc = create_render_context(
+            mjm=self.mj_model,
+            nworld=self.nworld,
+            cam_res=(64, 64),
+            render_rgb=cam_active,
+            render_depth=[False] * self.mj_model.ncam,
+            enabled_geom_groups=[0],
+        )
+        self.rc_pytree = self.rc.pytree()
+        """
 
     def _get_obs(self, mjx_data,waypoints):
         sd = mjx_data.sensordata
@@ -53,16 +72,32 @@ class UAVEnv:
         dist_to_waypoints = waypoints - mjx_data.qpos[:3]
         body_frame_waypoints = utils.world_to_body(rotation_matrice,dist_to_waypoints)
 
+        
+        """
+        #CAMERA
+
+        mj_data = mujoco.MjData(self.mj_model)
+        mjx_data = mjx.put_data(self.mj_model, mj_data, impl='warp')
+
+        rgb_data,depth_data = render(self.mjw_model,
+                                      mjx_data, 
+                                      self.rc_pytree)
+        
+        rgb = get_rgb(self.rc_pytree, 
+                      cam_id=self.fpv_cam_id, 
+                      rgb_data=rgb_data[0])
+        """
+
         return jnp.concatenate([
             rotation_matrice, # [0,1,2,...,7,8] 8 included
             sd[self._accel_slice], # [9,10,11,12] 12 included
             sd[self._gyro_slice], # [12,13,14] 15 included
             mjx_data.qpos[2:3], # [15] only height
             mjx_data.qvel[0:3], # Z  # [16,17,18] 18 included,
-            body_frame_waypoints # waypoints dist [19,20,21] 3 
+            body_frame_waypoints,# waypoints dist [19,20,21] 3 
+            #rgb.reshape(-1)
         ])
 
-    
     def base_reset(self):
         mj_data = mujoco.MjData(self.mj_model)
         mjx_data = mjx.put_data(self.mj_model, mj_data)        
@@ -82,7 +117,6 @@ class UAVEnv:
         
         return mjx_data,obs,DR_dict
         
-
     def reset(self,rng):    
         """
         # This function is vmapped so We need to separate the Python stuff out 
@@ -112,7 +146,6 @@ class UAVEnv:
 
         return jax.vmap(_reset,in_axes=0)(rng)
     
-
     def step(self, env_state: EnvState, actions: jnp.ndarray):
         """
         The reward is computed in SIMULATED output
@@ -154,7 +187,7 @@ class UAVEnv:
         obs = self._get_obs(mjx_data,waypoints)
 
         # if we are at step 0 there is no previous action so it is set to actions
-        # maybe we will change it place in the future
+        # maybe we will change its place in the future
         previous_actions = jnp.where(_internal_step == 0.0,actions,previous_actions)
 
         reward,touched_waypoints = compute_reward(obs,
@@ -173,6 +206,7 @@ class UAVEnv:
                                  success_counter + _internal_step)
         
         
+        # randomize waypoints 
         waypoints = jnp.where(touched_waypoints,
                               DR.randomize_waypoints(key,
                                                      z=(1,5)),
