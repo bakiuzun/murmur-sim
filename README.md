@@ -1,5 +1,6 @@
 # murmur-sim v2
-
+The code is written with JAX for the first two version. 
+The first two version did not require any vision tasks so it was pretty easy. However now that we need vision/camera rendering.... Jax batch rendering is on the newer version that I can't use due to nvidia driver compatibility issue. For this reason I move to PyTorch. Also for high fidelity image I will use another simulator which will most likely support PyTorch better than Jax.
 [![Video Title](https://img.youtube.com/vi/VPnQ8BP_8nw/0.jpg)](https://www.youtube.com/watch?v=VPnQ8BP_8nw)
 
 V1 (hovering + domain randomization)
