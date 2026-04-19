@@ -1,5 +1,5 @@
 import os 
-os.environ['CUDA_VISIBLE_DEVICES'] = '2'  # put this BEFORE importing jax
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # put this BEFORE importing jax
 
 from algos import ppo
 import utils 
