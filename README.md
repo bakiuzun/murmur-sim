@@ -1,4 +1,7 @@
-# murmur-sim v2 
+# murmur-sim v2
+
+[![Video Title](https://img.youtube.com/vi/VPnQ8BP_8nw/0.jpg)](https://www.youtube.com/watch?v=VPnQ8BP_8nw)
+
 V1 (hovering + domain randomization)
 V2 (waypoints following) 
 
