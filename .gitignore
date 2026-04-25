@@ -3,3 +3,4 @@ wandb/
 *.pyc
 MUJOCO_LOG.TXT
 pyrightconfig.json
+neighbourhood-city-modular-lowpoly/*
