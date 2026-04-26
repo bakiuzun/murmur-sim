@@ -19,7 +19,6 @@ class PPO():
         self._prepare_train(config,actorSpec,criticSpec)
         print("Training has been prepared")
 
-
         self.obs = self.env.reset()
 
     def _prepare_train(self,config,actorSpec=None,criticSpec=None,ckpt_path=None):
