@@ -19,8 +19,6 @@ class PPO():
         self._prepare_train(config,actorSpec,criticSpec)
         print("Training has been prepared")
 
-
-
         self.obs = self.env.reset()
 
     def _prepare_train(self,config,actorSpec=None,criticSpec=None,ckpt_path=None):
@@ -45,8 +43,8 @@ class PPO():
                         critic_spec=criticSpec)
 
         
-        self.model.load_state_dict(torch.load('new_model_900.pt',
-                                    map_location=torch.device('cpu')))
+        self.model.load_state_dict(torch.load('new_model_500.pt',
+                                   map_location=torch.device('cpu')))
 
         
         self.num_steps = config['num_steps']
