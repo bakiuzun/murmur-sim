@@ -6,7 +6,7 @@ import utils
 import genesis as gs
 from algos import ppo 
 import torch
-
+from envs import VisionTargetFollowingEnv,WayPointsFollowEnv
 
 gs.init(backend=gs.cuda,logging_level="warning")
 
@@ -20,7 +20,7 @@ reward_presets = {
         'target_height': 5.0, 
         'delta_angvel': 0.0002, 
         'delta_linvel': 0.001,
-        'delta_prog': 10.0,
+        'delta_prog': 0.0,
         'yaw_delta': -10.0,
         'delta_yaw': 0.01,
         'delta_actions': 0.0001,
@@ -61,17 +61,17 @@ for lr, total_steps, gm, (reward_name, reward_config) in itertools.product(
 
     config = {
         "lr": lr,
-        "num_envs": 4096,
+        "num_envs": 2048,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,
-        
         'episode_length_s': 15.0,
         "gamma": gm,
         "gae_lambda": 0.95,
         "clip_eps": 0.2,
         "max_grad_norm": 0.5,
         'num_minibatches': 32,
+        'target_features_path': 'models/target_features/features.pt',
         "reward_config": reward_config,
         'target_height': reward_config['target_height'],
         'actor_last_activation': torch.nn.Tanh(),
@@ -80,12 +80,12 @@ for lr, total_steps, gm, (reward_name, reward_config) in itertools.product(
         'show_viewer': False
     }
 
+    
+    
     run_name = f"{reward_name}"
     utils.init_wandb(config, name=run_name)
-    ppo = ppo.PPO(config,actorSpec=None,criticSpec=None)
+    env = WayPointsFollowEnv(config)
+    ppo = ppo.PPO(env,config,actorSpec=None,criticSpec=None)
     ppo.train()
-
     utils.finish_wandb()
-
-
 

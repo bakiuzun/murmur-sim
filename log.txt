@@ -1,0 +1,16 @@
+wandb: Currently logged in as: u-officialdeveloper (theyazilimci) to https://api.wandb.ai. Use `wandb login --relogin` to force relogin
+wandb: setting up run 0cf9pusr
+wandb: Tracking run with wandb version 0.22.2
+wandb: Run data is saved locally in /users/nfs/Etu1/21400271/murmur-sim/wandb/run-20260428_225337-0cf9pusr
+wandb: Run `wandb offline` to turn off syncing.
+wandb: Syncing run best_waypoint_following
+wandb: ⭐️ View project at https://wandb.ai/theyazilimci/drone-rl
+wandb: 🚀 View run at https://wandb.ai/theyazilimci/drone-rl/runs/0cf9pusr
+[38;5;226m[Genesis] [22:53:44] [WARNING] Some free joint has non-zero frictionloss, damping or armature parameters. Beware it is non-physical.[0m
+Using cache found in /users/Etu1/21400271/.cache/torch/hub/facebookresearch_dinov2_main
+/users/Etu1/21400271/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/swiglu_ffn.py:51: UserWarning: xFormers is not available (SwiGLU)
+  warnings.warn("xFormers is not available (SwiGLU)")
+/users/Etu1/21400271/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/attention.py:33: UserWarning: xFormers is not available (Attention)
+  warnings.warn("xFormers is not available (Attention)")
+/users/Etu1/21400271/.cache/torch/hub/facebookresearch_dinov2_main/dinov2/layers/block.py:40: UserWarning: xFormers is not available (Block)
+  warnings.warn("xFormers is not available (Block)")

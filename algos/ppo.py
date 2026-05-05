@@ -1,5 +1,4 @@
 import torch 
-from envs import UAVEnv
 from models import ActorCritic 
 import utils 
 from structs import Transition,ModelSpec,EnvState
@@ -9,20 +8,21 @@ import torch.nn as nn
 
 
 class PPO():
-    def __init__(self,config,actorSpec=None,criticSpec=None):
+    def __init__(self,env,config,actorSpec=None,criticSpec=None):
 
         self.config = config 
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.num_envs = self.config['num_envs']
 
+        self.env = env
         self._prepare_train(config,actorSpec,criticSpec)
         print("Training has been prepared")
 
         self.obs = self.env.reset()
 
     def _prepare_train(self,config,actorSpec=None,criticSpec=None,ckpt_path=None):
-        self.env = UAVEnv(config) 
+        
 
         if actorSpec is None:
             actorSpec = ModelSpec(
@@ -42,7 +42,11 @@ class PPO():
                         actor_spec=actorSpec,
                         critic_spec=criticSpec)
 
-        
+
+
+        #self.model.load_state_dict(torch.load('new_model_300.pt'))
+
+
         self.num_steps = config['num_steps']
         self.num_updates = int(config['total_timesteps'] // self.num_steps // config['num_envs'])
         self.total_optimizer_steps = self.num_updates * config['update_epochs'] * config['num_minibatches']
@@ -88,8 +92,6 @@ class PPO():
             self.obs = new_obs 
   
         return obs_buffer, actions_buffer, logprobs_buffer, rewards_buffer, values_buffer, dones_buffer
-
-
 
 
     @torch.no_grad()
