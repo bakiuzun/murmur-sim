@@ -88,17 +88,7 @@ class VisionTargetFollowingEnv(UAVEnv):
 
         self._build_map()
      
-        # drone camera 
-        self.camera = self.scene.add_sensor(
-            gs.sensors.BatchRendererCameraOptions(
-                res=(224,224),
-                pos=(0.0,0.0,-0.05),
-                lookat=(0.0,0.0,-1.0),
-                entity_idx=self.gs_drone.idx,
-                fov=90
-            )
-        )
-
+    
         self.target = self.scene.add_entity(
                 morph=gs.morphs.Mesh(
                     file="meshes/sphere.obj",
@@ -116,7 +106,18 @@ class VisionTargetFollowingEnv(UAVEnv):
                 file='urdf/drones/cf2x.urdf'
             )
         )
-        
+
+        # drone camera 
+        self.camera = self.scene.add_sensor(
+            gs.sensors.BatchRendererCameraOptions(
+                res=(224,224),
+                pos=(0.0,0.0,-0.05),
+                lookat=(0.0,0.0,-1.0),
+                entity_idx=self.gs_drone.idx,
+                fov=90
+            )
+        )
+
         self.scene.build(n_envs=self.num_envs,
                          env_spacing=(20.0,20.0))
 
@@ -364,7 +365,7 @@ class VisionTargetFollowingEnv(UAVEnv):
         # Genesis step 
         self.scene.step() 
 
-        #self.save_multiple_target_img()
+        self.save_multiple_target_img()
         obs = self._get_obs()
 
         #self.save_current_view()

@@ -85,6 +85,7 @@ class WayPointsFollowEnv(UAVEnv):
         
         self.waypoints = self.random_waypoints(n=self.num_envs)
         
+
     def random_waypoints(self, n):
         x = torch.rand((n, 1), device=gs.device, dtype=gs.tc_float) * 4.0  # [0, 4)
         y = torch.rand((n, 1), device=gs.device, dtype=gs.tc_float) * 4.0  # [0, 4)
@@ -125,7 +126,11 @@ class WayPointsFollowEnv(UAVEnv):
         #self.target.set_pos(self.waypoints, zero_velocity=True)
         
         # Genesis step 
+
+
         self.scene.step() 
+
+        self.save_imgs()
 
 
 
