@@ -20,19 +20,13 @@ gm = 0.99
 reward_presets = {
     
     'best_waypoint_following': {
-        'target_height': 5.0, 
         'delta_angvel': 0.0002, 
         'delta_linvel': 0.001,
-        'delta_prog': 0.0,
         'yaw_delta': -10.0,
         'delta_yaw': 0.01,
         'delta_actions': 0.0001,
-        'action_threshold': 0.0,
-        'delta_lateral_vel': 0.00,
         'delta_crash': 1.0,
-        'delta_hover': 0.01,
-        'delta_closetarget': 10.0,
-        'v_max': 10.0,
+        'delta_cosim': 1.0,
         'dt': 0.01 # Mujoco env
     },  
 }  
@@ -40,7 +34,7 @@ reward_presets = {
 for reward_name,reward_config in reward_presets.items():
     config = {
         "lr": lr,
-        "num_envs": 5,
+        "num_envs": 2048,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,
@@ -52,11 +46,10 @@ for reward_name,reward_config in reward_presets.items():
         'num_minibatches': 32,
         'target_features_path': 'models/target_features/features.pt',
         "reward_config": reward_config,
-        'target_height': reward_config['target_height'],
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",
         'dt': 0.01,
-        'show_viewer': False
+        'show_viewer': True
     }
 
     

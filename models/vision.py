@@ -87,7 +87,7 @@ class VisionModule():
         img = (img - self.mean) / self.std
 
 
-        imt = img.to(self.device)
+        img = img.to(self.device)
         
         return img
 
@@ -103,7 +103,7 @@ class VisionModule():
         
         print(f"Loaded: {self.features_bank.shape[0]} features of dim: {self.features_bank.shape[1:]} ")
 
-    def cosine_sim(self,input_x,block_index=4,apply_transform=True,compute_features=True):
+    def cosine_sim(self,input_x,compute_features=True):
         """
         cosine sim with the bank features.
         We hope that more the cosine sim is high and more the drone look
@@ -117,9 +117,7 @@ class VisionModule():
         n_envs = input_x.shape[0]
 
         if compute_features:
-            img_features = self.get_features(input_x,
-                                         block_index=block_index,
-                                         apply_transform=apply_transform)
+            img_features = self.get_features(input_x)
             
         # we might need to normalize for cos sim 
         normalized_img_feat = F.normalize(img_features,p=2.0,dim=-1)
@@ -141,7 +139,7 @@ class VisionModule():
         
         return mean_cos_per_env
     
-    def get_features(self,img,block_index,apply_transform=True):
+    def get_features(self,img):
 
         img = self._prepare_input(img)
 
@@ -156,7 +154,7 @@ class VisionModule():
         return cls_token.float()
 
         
-    def save_features(self,block_index,img_folder,save_path):
+    def save_features(self,img_folder:str,save_path:str):
         paths = os.listdir(img_folder)
         os.makedirs(save_path,exist_ok=True)
 
@@ -166,9 +164,7 @@ class VisionModule():
         for p in paths:    
             img = Image.open(f"{img_folder}/{p}").convert('RGB')
 
-            features = self.get_features(img,
-                                        block_index=block_index,
-                                        apply_transform=True)
+            features = self.get_features(img)
 
             all_features.append(features)
             
@@ -179,12 +175,50 @@ class VisionModule():
         print("All features has been saved!")
 
 
+    def e_greedy(self,save_path,ratio=0.1):
+        if self.features_bank is None:
+            print("Skipping e greedy you must first load features bank")
+            return 
+        N = self.features_bank.shape[0]
+        total_samples = int(N * ratio)
+
+        random_index = torch.randint(0,N,size=(1,))
+
+    
+        current = self.features_bank[random_index] 
+        samples = [current]
+
+        minimum = torch.full(size=(N,1),fill_value=float('inf'))
+        minimum[random_index] = 0.
+        for _ in range(total_samples - 1):
+
+            # (1,59)
+            dist = torch.cdist(self.features_bank,current)
+            
+
+            minimum = torch.minimum(dist,minimum)
+
+            maxx_dist_index = torch.argmax(minimum,dim=0)
+
+            minimum[maxx_dist_index] = 0. 
+
+            current = self.features_bank[maxx_dist_index]
+            samples.append(current)
         
+        samples = torch.cat(samples,dim=0)
+        
+        torch.save(samples,save_path)
+        
+        print("Saved e greedy samples to: ",save_path)
+
+        return samples 
+
+
 if __name__ == "__main__":
     vision = VisionModule()
 
-    vision.save_features(10,'models/target_imgs/',
-                         save_path='target_features')
+    vision.save_features('models/target_imgs/',save_path='target_features')
     
-    vision.load_features('target_features/features.pt')
-    
+    #vision.load_features('target_features/features.pt')
+    #vision.e_greedy(save_path='models/target_features/e_greedy_features.pt',ratio=0.1)
+
