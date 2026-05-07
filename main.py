@@ -34,7 +34,7 @@ reward_presets = {
 for reward_name,reward_config in reward_presets.items():
     config = {
         "lr": lr,
-        "num_envs": 2048,
+        "num_envs": 1,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,

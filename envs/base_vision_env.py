@@ -74,7 +74,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         # Vision Module 
         self.vision_module = VisionModule(img_size=224)
-        self.vision_module.load_features('target_features/features.pt')
+        self.vision_module.load_features(config['target_features_path'])
 
         self.obs_size = self._get_obs().shape[-1]
         self.act_size = 4 # each motor RPM
@@ -184,23 +184,12 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         obs = self._get_obs()
 
-        rgb = self.camera.read().rgb
-
-        cossim_true = self.vision_module.cosine_sim(rgb,compute_features=True)
-
-        print("THE TRUE COS SIM THO = ",cossim_true)
-
-
-        #self.save_multiple_target_img()
-        
-        cv2.imwrite(f"{self._internal_step}_im.png",rgb[0].cpu().numpy())
         
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
         reward = self.compute_reward(obs,actions)
  
         
-
         self.previous_obs = obs 
         self.previous_acts = actions
 
@@ -213,7 +202,8 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         truncated = (self._internal_step >= self.max_episode_length).squeeze(-1)
 
-        self._internal_step += 1 
+        self._internal_step += 1
+        print("Terminated = ",terminated)
 
         return obs,reward,terminated,truncated
 
