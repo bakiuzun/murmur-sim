@@ -188,9 +188,10 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
-        reward = self.compute_reward(obs,actions)
+        reward,high_cos_sim = self.compute_reward(obs,actions)
  
-        
+        self.success_counter += self.success_counter + high_cos_sim.long()
+
         self.previous_obs = obs 
         self.previous_acts = actions
 
@@ -198,8 +199,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         ang_vel  = obs[:,12:15]
 
         ang_vel_mag = torch.linalg.norm(ang_vel, dim=-1)
-        SPIN_LIMIT = 360 / 57.2958  
-        terminated = (height < 0.1) | (ang_vel_mag > SPIN_LIMIT)
+        SPIN_LIMIT = 360 / 57.2958 
+        
+        terminated = (height < 0.1) | (ang_vel_mag > SPIN_LIMIT) | (self.success_counter > 200)
         
         truncated = (self._internal_step >= self.max_episode_length).squeeze(-1)
 
@@ -228,7 +230,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         cos_sim = self.vision_module.cosine_sim(features,compute_features=False)
         
-        
+        cos_sim_sup = cos_sim > 0.90 
         reward = (
             #+ self.reward_config['delta_yaw'] * yaw_bonus  
             + self.reward_config['delta_cosim'] * cos_sim 
@@ -239,7 +241,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         )
 
             
-        return reward
+        return reward,cos_sim_sup
 
     def random_drone_spawn(self, n):
         """Spawn the drone randomly in the arena, above the trees."""
@@ -252,10 +254,10 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
     def spawn_next_to_waypoints(self):
 
-        x = self.waypoints[:,0]
-        y = self.waypoints[:,1]
-        z = self.waypoints[:,2]
-
+        x = self.waypoints[:,0:1]
+        y = self.waypoints[:,1:2]
+        z = self.waypoints[:,2:3]
+        
 
         return torch.cat((x,y,z+0.3),dim=1)
 
@@ -297,10 +299,10 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
             
         self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
 
-        new_spans = self.spawn_next_to_waypoints(n=len(envs_idx))
+        new_spans = self.spawn_next_to_waypoints()
 
         
-        self.drone_poses[envs_idx] = new_spans 
+        self.drone_poses[envs_idx] = new_spans[envs_idx]
 
         self.gs_drone.set_pos(new_spans, 
                             zero_velocity=True,

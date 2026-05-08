@@ -34,7 +34,7 @@ reward_presets = {
 for reward_name,reward_config in reward_presets.items():
     config = {
         "lr": lr,
-        "num_envs": 1024,
+        "num_envs": 1,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,
@@ -49,7 +49,7 @@ for reward_name,reward_config in reward_presets.items():
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",
         'dt': 0.01,
-        'show_viewer': False
+        'show_viewer': True
     }
 
     
