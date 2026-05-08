@@ -1,5 +1,5 @@
 import os 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'  # put this BEFORE importing jax
+os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # put this BEFORE importing jax
 import os
 import itertools
 import utils 
@@ -22,7 +22,7 @@ reward_presets = {
     'best_waypoint_following': {
         'delta_angvel': 0.0002, 
         'delta_linvel': 0.001,
-        'yaw_delta': -10.0,
+        'yaw_delta': 0.0,
         'delta_yaw': 0.01,
         'delta_actions': 0.0001,
         'delta_crash': 1.0,
@@ -34,7 +34,7 @@ reward_presets = {
 for reward_name,reward_config in reward_presets.items():
     config = {
         "lr": lr,
-        "num_envs": 1,
+        "num_envs": 1024,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,
@@ -49,7 +49,7 @@ for reward_name,reward_config in reward_presets.items():
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",
         'dt': 0.01,
-        'show_viewer': True
+        'show_viewer': False
     }
 
     

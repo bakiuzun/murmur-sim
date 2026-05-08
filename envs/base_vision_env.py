@@ -10,6 +10,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         super().__init__(config)
 
         self.batch_rendering = True if torch.cuda.is_available() else False
+        self.rendering_frequency = 4
 
         self.scene = gs.Scene(
             sim_options=gs.options.SimOptions(dt=self.dt,substeps=2),
@@ -73,7 +74,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.init_base_obs()
 
         # Vision Module 
-        self.vision_module = VisionModule(img_size=224)
+        self.vision_module = VisionModule(img_size=98)
         self.vision_module.load_features(config['target_features_path'])
 
         self.obs_size = self._get_obs().shape[-1]
@@ -81,7 +82,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         self.previous_obs = torch.zeros((self.num_envs,self.obs_size),device=gs.device,dtype=gs.tc_float)
         self.previous_acts = torch.zeros((self.num_envs,self.act_size),device=gs.device,dtype=gs.tc_float)
-            
+        
+        # DINO OUTPUT SIZE 
+        self.cached_features = torch.zeros((self.num_envs,384))
 
 
     def setup_camera(self):
@@ -89,7 +92,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
             self.camera = self.scene.add_sensor(
                 gs.sensors.BatchRendererCameraOptions(
-                    res=(224,224),
+                    res=(98,98),
                     pos=(0.0,0.0,-0.1),
                     lookat=(0.0,0.0,0.0),
                     entity_idx=self.gs_drone.idx,
@@ -181,9 +184,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.target.set_pos(self.waypoints, zero_velocity=True)        
         self.scene.step() 
 
-
         obs = self._get_obs()
-
         
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
@@ -203,10 +204,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         truncated = (self._internal_step >= self.max_episode_length).squeeze(-1)
 
         self._internal_step += 1
-        print("Terminated = ",terminated)
+        
 
         return obs,reward,terminated,truncated
-
 
     def compute_reward(self,obs, actions):
         
@@ -216,10 +216,11 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         features = obs[:,16:]
 
         # making sure the yaw is near 0 to avoid spinnign  
+        """
         R = obs[:, :9].reshape(-1, 3, 3)
         yaw = torch.atan2(R[:, 1, 0], R[:, 0, 0])
         yaw_bonus = torch.exp(-torch.square(yaw) / (self.reward_config['yaw_delta'] ** 2))
-       
+        """
         # penality IF we take too much time it might be linear or exponential or quadratic 
         
         actions_diff = torch.sum(torch.square(actions - self.previous_acts), dim=-1)
@@ -227,8 +228,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         cos_sim = self.vision_module.cosine_sim(features,compute_features=False)
         
+        
         reward = (
-            + self.reward_config['delta_yaw'] * yaw_bonus  
+            #+ self.reward_config['delta_yaw'] * yaw_bonus  
             + self.reward_config['delta_cosim'] * cos_sim 
             - self.reward_config['delta_linvel'] * torch.square(torch.linalg.norm(lin_vel, dim=-1))
             - self.reward_config['delta_actions'] * actions_diff
@@ -239,8 +241,6 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
             
         return reward
 
-
-
     def random_drone_spawn(self, n):
         """Spawn the drone randomly in the arena, above the trees."""
         x = torch.rand((n, 1), device=gs.device, dtype=gs.tc_float) * 3
@@ -249,13 +249,28 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         z = torch.clamp(z,1.)
 
         return torch.cat((x, y, z), dim=1)
-  
+
+    def spawn_next_to_waypoints(self):
+
+        x = self.waypoints[:,0]
+        y = self.waypoints[:,1]
+        z = self.waypoints[:,2]
+
+
+        return torch.cat((x,y,z+0.3),dim=1)
+
+
     def _get_obs(self):
         base_obs = super()._get_obs()
 
-        # camera read 
-        rgb_pixels = self.camera.read().rgb 
-        dino_features = self.vision_module.get_features(rgb_pixels)
+        should_read_rgb = self._internal_step % self.rendering_frequency == 0
+
+        if torch.any(should_read_rgb): 
+            rgb_pixels = self.camera.read().rgb 
+            dino_features = self.vision_module.get_features(rgb_pixels)
+            self.cached_features = dino_features
+        else:
+            dino_features = self.cached_features
 
         obs = torch.cat((base_obs,dino_features),dim=1)
 
@@ -274,17 +289,22 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         z = torch.ones(n, 1, device=gs.device, dtype=gs.tc_float) * 1.0 
         return torch.cat((x, y, z), dim=1)
 
+
+
     def _reset_idx(self,envs_idx):   
         super()._reset_idx(envs_idx)
-        new_spans = self.random_drone_spawn(n=len(envs_idx))
+        #new_spans = self.random_drone_spawn(n=len(envs_idx))
+            
+        self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
 
+        new_spans = self.spawn_next_to_waypoints(n=len(envs_idx))
+
+        
         self.drone_poses[envs_idx] = new_spans 
 
         self.gs_drone.set_pos(new_spans, 
                             zero_velocity=True,
                              envs_idx=envs_idx)
 
-            
-        self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
-
+        
 

@@ -211,7 +211,7 @@ class PPO():
             self.update(obs_b, actions_b, logprobs_b, advantage, returns)
             
             print(f"Update {update_step}/{self.num_updates} complete.")
-            if update_step % 100 == 0:
+            if update_step % 100 == 0 and update_step > 0:
                 torch.save(self.model.state_dict(),f'new_model_{update_step}.pt')
 
 
