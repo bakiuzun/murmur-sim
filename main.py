@@ -19,7 +19,7 @@ gm = 0.99
 
 reward_presets = {
     
-    'best_waypoint_following': {
+    'baseline': {
         'delta_angvel': 0.0002, 
         'delta_linvel': 0.001,
         'yaw_delta': 0.0,
@@ -49,7 +49,7 @@ for reward_name,reward_config in reward_presets.items():
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",
         'dt': 0.01,
-        'show_viewer': True
+        'show_viewer': False
     }
 
     

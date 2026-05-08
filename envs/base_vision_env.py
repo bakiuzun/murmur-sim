@@ -38,10 +38,11 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
             renderer=gs.renderers.BatchRenderer() if self.batch_rendering else gs.renderers.Rasterizer()
         )
 
-
+        """
         self._dummy_cam = self.scene.add_camera(
             res=(64, 64), pos=(0,0,5), lookat=(0,0,0), fov=60, GUI=False
         )
+        """
 
 
         self.scene.add_entity(morph=gs.morphs.Plane(),
@@ -90,7 +91,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.vision_module = VisionModule(img_size=98)
         self.vision_module.load_features(config['target_features_path'])
 
-        self.obs_size = self._get_obs().shape[-1]
+        self.obs_size = self._get_obs()['obs'].shape[-1]
         self.act_size = 4 # each motor RPM
 
         self.previous_obs = torch.zeros((self.num_envs,self.obs_size),device=gs.device,dtype=gs.tc_float)
@@ -158,7 +159,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         #self.save_multiple_target_img()
 
-        obs,segmentation = self._get_obs()
+        obs = self._get_obs()['obs']
 
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
@@ -236,7 +237,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         return torch.cat((x,y,z),dim=1)
 
     def _get_obs(self):
-        base_obs = super()._get_obs()
+        base_obs = super()._get_obs()['obs']
 
         should_read_rgb = self._internal_step % self.rendering_frequency == 0
             
@@ -253,7 +254,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         obs = torch.cat((base_obs,dino_features),dim=1)
         
 
-        return obs,segmentation  
+        return {'obs': obs,
+                'segmentation': segmentation} 
+
  
     def init_base_obs(self):
         super().init_base_obs()

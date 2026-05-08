@@ -65,7 +65,7 @@ class UAVEnv(ABC):
         body_frame_lin_vel = body_frame_states[..., 0]
         body_frame_ang_vel = body_frame_states[..., 1]
 
-        ret = torch.cat(
+        obs = torch.cat(
             (rotation_matrices.reshape(-1,9), # [0,1,2,...,7,8] 8 included
             body_frame_lin_vel, #91011
             body_frame_ang_vel,#121314
@@ -73,7 +73,7 @@ class UAVEnv(ABC):
             ),
             dim=1) 
 
-        return ret  
+        return {'obs': obs}  
  
     def init_base_obs(self):
 
@@ -115,7 +115,7 @@ class UAVEnv(ABC):
 
         self._reset_idx(envs_idx)
         
-        obs = self._get_obs()
+        obs = self._get_obs()['obs']
         
         return obs[envs_idx]
 
