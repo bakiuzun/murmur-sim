@@ -177,37 +177,6 @@ class WayPointsFollowEnv(UAVEnv):
         return obs,reward,terminated,truncated
 
 
-    def yo(self,actions):
-        with torch.no_grad():
-            pos = self.gs_drone.get_pos()
-            quat = self.gs_drone.get_quat()
-            lin_vel = self.gs_drone.get_vel()
-            ang_vel = self.gs_drone.get_ang()
-            
-            bad = (
-                torch.isnan(pos).any(dim=-1) | torch.isinf(pos).any(dim=-1) |
-                torch.isnan(quat).any(dim=-1) | torch.isinf(quat).any(dim=-1) |
-                torch.isnan(lin_vel).any(dim=-1) | torch.isinf(lin_vel).any(dim=-1) |
-                torch.isnan(ang_vel).any(dim=-1) | torch.isinf(ang_vel).any(dim=-1)
-            )
-            
-            # Also flag "about to go bad"
-            extreme = (
-                (ang_vel.abs() > 100).any(dim=-1) |
-                (lin_vel.abs() > 50).any(dim=-1) |
-                (pos.abs() > 1000).any(dim=-1)
-            )
-            
-            if bad.any() or extreme.any():
-                idx = (bad | extreme).nonzero(as_tuple=True)[0][:3]
-                print(f"step {self._internal_step[idx[0]].item():.0f} | "
-                    f"pos={pos[idx[0]].tolist()} | "
-                    f"quat={quat[idx[0]].tolist()} | "
-                    f"lin_vel={lin_vel[idx[0]].tolist()} | "
-                    f"ang_vel={ang_vel[idx[0]].tolist()} | "
-                    f"action={actions[idx[0]].tolist()}")
-
-
     def compute_reward(self,obs, actions):
         height = obs[:, 15]
         ang_vel = obs[:, 12:15]

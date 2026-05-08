@@ -34,7 +34,7 @@ reward_presets = {
 for reward_name,reward_config in reward_presets.items():
     config = {
         "lr": lr,
-        "num_envs": 1,
+        "num_envs": 2,
         "num_steps": 256,
         "total_timesteps": total_steps,
         "update_epochs": 4,
@@ -44,7 +44,7 @@ for reward_name,reward_config in reward_presets.items():
         "clip_eps": 0.2,
         "max_grad_norm": 0.5,
         'num_minibatches': 32,
-        'target_features_path': 'models/target_features/features.pt',
+        'target_features_path': 'target_features/e_greedy_features.pt',
         "reward_config": reward_config,
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",

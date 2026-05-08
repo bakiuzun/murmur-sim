@@ -3,6 +3,7 @@ import genesis as gs
 from models import VisionModule
 import cv2
 from .base_env import UAVEnv
+import numpy as np 
 
 
 class SimpleVisionTargetFollowingEnv(UAVEnv):
@@ -24,7 +25,8 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
                 rendered_envs_idx=list(range(self.rendered_env_num)),
                 ambient_light=(1.0, 1.0, 1.0),
                 shadow=False,
-                env_separate_rigid=True if not self.batch_rendering else False
+                env_separate_rigid=True if not self.batch_rendering else False, 
+                segmentation_level="entity"
             ),
             rigid_options=gs.options.RigidOptions(
                 dt=self.dt,
@@ -64,11 +66,22 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
                 file='urdf/drones/cf2x.urdf'
             )
         )
+       
+        
+        # pos and lookat is not used WHEN it is attached to a drone!!!!!!!!!
+        self.camera = self.scene.add_camera(res=(98,98),
+                                         pos=(0.0,0.0,0.0),
+                                         lookat=(0.0,0.0,0),
+                                         fov=90,GUI=False) 
+        
 
-        self.setup_camera()
-
+        self.camera.attach(self.gs_drone,offset_T=np.array([[1,0,0,0.],
+                                                         [0,1,0,0],
+                                                         [0,0,1,0],
+                                                         [0,0,0,1]]))
+        
         self.scene.build(n_envs=self.num_envs,
-                         env_spacing=(20.0,20.0))
+                         env_spacing=(0,0))
 
 
         self.init_base_obs()
@@ -85,45 +98,8 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         # DINO OUTPUT SIZE 
         self.cached_features = torch.zeros((self.num_envs,384))
-
-
-    def setup_camera(self):
-        if self.batch_rendering:
-
-            self.camera = self.scene.add_sensor(
-                gs.sensors.BatchRendererCameraOptions(
-                    res=(98,98),
-                    pos=(0.0,0.0,-0.1),
-                    lookat=(0.0,0.0,0.0),
-                    entity_idx=self.gs_drone.idx,
-                    fov=90,
-                    lights=[{
-                        "pos": (2.0, 2.0, 5.0),
-                        "color": (1.0, 1.0, 1.0),
-                        "intensity": 0.3,
-                        "directional": True,
-                        "castshadow": False,
-                    }],
-                )
-            )
-
-        else:
-            self.camera = self.scene.add_sensor(
-                gs.sensors.RasterizerCameraOptions(
-                    res=(224, 224),
-                    pos=(0.0, 0.0, -0.1),
-                    lookat=(0.0, 0.0, 0.0),
-                    fov=90.0,
-                    entity_idx=self.gs_drone.idx,
-                    lights=[{
-                        "pos": (2.0, 2.0, 5.0),
-                        "color": (1.0, 1.0, 1.0),
-                        "intensity": 0.3,
-                        "directional": True,
-                        "castshadow": False,
-                    }],
-                )
-            )
+        self.segmentation = torch.zeros((self.num_envs,98,98))
+        self.index_waypoint_segmentation = 1 
 
 
     def save_multiple_target_img(self):
@@ -149,48 +125,46 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
                 
                 self.scene.step()
 
-                data = self.camera.read()
+                rgb,_,_,_ = self.camera.render(rgb=True)
 
-                rgb = data.rgb
 
                 cos_sim = self.vision_module.cosine_sim(rgb,compute_features=True)
 
                 print("Cos sim = ",cos_sim)
 
             
-                if isinstance(rgb,torch.Tensor):rgb = rgb.cpu().numpy()
-                #if rgb.ndim == 4:rgb = rgb[0]
-
-                #bgr = cv2.cvtColor(rgb,cv2.COLOR_RGB2BGR)
                 
-                #cv2.imwrite(f"target_imgs/img_{axis}-{i}.jpg",rgb[0])
+                cv2.imwrite(f"target_imgs/img_{axis}-{i}.jpg",rgb[0])
 
                 
         variate(axis=[2])
-        """
         variate(axis=[0])
         variate(axis=[1])
         variate(axis=[1,2])
         variate(axis=[0,2])
         variate(axis=[0,1,2])
-        """
+        
 
     def step(self, actions):
         
         cliped_actions = torch.clip(actions,-1.0,1.0)
-        target_rpm = (1 + cliped_actions * 0.8) * 14468.429183500699
+        #cliped_actions = torch.zeros_like(cliped_actions)
+        target_rpm = (1 + cliped_actions) * 14468.429183500699
         self.gs_drone.set_propellers_rpm(target_rpm)
+        self.camera.move_to_attach()
 
         self.target.set_pos(self.waypoints, zero_velocity=True)        
         self.scene.step() 
 
-        obs = self._get_obs()
-        
+        #self.save_multiple_target_img()
+
+        obs,segmentation = self._get_obs()
+
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
         reward,high_cos_sim = self.compute_reward(obs,actions)
  
-        self.success_counter += self.success_counter + high_cos_sim.long()
+        self.success_counter = self.success_counter + high_cos_sim.long()
 
         self.previous_obs = obs 
         self.previous_acts = actions
@@ -252,31 +226,34 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         return torch.cat((x, y, z), dim=1)
 
+
     def spawn_next_to_waypoints(self):
 
-        x = self.waypoints[:,0:1]
-        y = self.waypoints[:,1:2]
-        z = self.waypoints[:,2:3]
+        x = self.waypoints[:,0:1] * torch.randn((self.num_envs,1)) * 0.5
+        y = self.waypoints[:,1:2] * torch.randn((self.num_envs,1)) * 0.5
+        z = self.waypoints[:,2:3] * abs(torch.randn((self.num_envs,1))) 
         
-
-        return torch.cat((x,y,z+0.3),dim=1)
-
+        return torch.cat((x,y,z),dim=1)
 
     def _get_obs(self):
         base_obs = super()._get_obs()
 
         should_read_rgb = self._internal_step % self.rendering_frequency == 0
-
+            
+        
         if torch.any(should_read_rgb): 
-            rgb_pixels = self.camera.read().rgb 
+            rgb_pixels,_,segmentation,_ = self.camera.render(rgb=True,segmentation=True)
             dino_features = self.vision_module.get_features(rgb_pixels)
             self.cached_features = dino_features
+            self.cached_segmentation = segmentation 
         else:
             dino_features = self.cached_features
-
+            segmentation = self.cached_segmentation
+        
         obs = torch.cat((base_obs,dino_features),dim=1)
+        
 
-        return obs 
+        return obs,segmentation  
  
     def init_base_obs(self):
         super().init_base_obs()
@@ -295,16 +272,14 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
     def _reset_idx(self,envs_idx):   
         super()._reset_idx(envs_idx)
-        #new_spans = self.random_drone_spawn(n=len(envs_idx))
-            
+           
         self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
 
-        new_spans = self.spawn_next_to_waypoints()
+        new_spans = self.spawn_next_to_waypoints()    
 
-        
         self.drone_poses[envs_idx] = new_spans[envs_idx]
-
-        self.gs_drone.set_pos(new_spans, 
+        
+        self.gs_drone.set_pos(new_spans[envs_idx], 
                             zero_velocity=True,
                              envs_idx=envs_idx)
 

@@ -44,7 +44,8 @@ class PPO():
 
 
 
-        #self.model.load_state_dict(torch.load('new_model_300.pt'))
+        self.model.load_state_dict(torch.load('new_model_1100.pt',
+                                              map_location="cuda" if torch.cuda.is_available() else "cpu"))
 
 
         self.num_steps = config['num_steps']
