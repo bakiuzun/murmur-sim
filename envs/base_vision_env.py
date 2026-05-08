@@ -73,7 +73,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.camera = self.scene.add_camera(res=(98,98),
                                          pos=(0.0,0.0,0.0),
                                          lookat=(0.0,0.0,0),
-                                         fov=90,GUI=False) 
+                                         fov=90,GUI=True) 
         
 
         self.camera.attach(self.gs_drone,offset_T=np.array([[1,0,0,0.],
@@ -149,7 +149,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
     def step(self, actions):
         
         cliped_actions = torch.clip(actions,-1.0,1.0)
-        #cliped_actions = torch.zeros_like(cliped_actions)
+        cliped_actions = torch.zeros_like(cliped_actions)
         target_rpm = (1 + cliped_actions) * 14468.429183500699
         self.gs_drone.set_propellers_rpm(target_rpm)
         self.camera.move_to_attach()
@@ -159,7 +159,8 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         #self.save_multiple_target_img()
 
-        obs = self._get_obs()['obs']
+        obs = self._get_obs()
+        network_obs = obs['obs']
 
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
@@ -167,11 +168,11 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
  
         self.success_counter = self.success_counter + high_cos_sim.long()
 
-        self.previous_obs = obs 
+        self.previous_obs = network_obs 
         self.previous_acts = actions
 
-        height = obs[:,15]    
-        ang_vel  = obs[:,12:15]
+        height = network_obs[:,15]    
+        ang_vel  = network_obs[:,12:15]
 
         ang_vel_mag = torch.linalg.norm(ang_vel, dim=-1)
         SPIN_LIMIT = 360 / 57.2958 
@@ -183,14 +184,17 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self._internal_step += 1
         
 
-        return obs,reward,terminated,truncated
+        return network_obs,reward,terminated,truncated
 
     def compute_reward(self,obs, actions):
-        
-        height = obs[:, 15]
-        ang_vel = obs[:, 12:15]
-        lin_vel = obs[:, 9:12]
-        features = obs[:,16:]
+       
+        network_obs = obs['obs']
+        segmentation = obs['segmentation'].reshape(self.num_envs,-1)
+
+        height = network_obs[:, 15]
+        ang_vel = network_obs[:, 12:15]
+        lin_vel = network_obs[:, 9:12]
+        features = network_obs[:,16:]
 
         # making sure the yaw is near 0 to avoid spinnign  
         """
@@ -198,6 +202,10 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         yaw = torch.atan2(R[:, 1, 0], R[:, 0, 0])
         yaw_bonus = torch.exp(-torch.square(yaw) / (self.reward_config['yaw_delta'] ** 2))
         """
+
+        segmentation_sum = torch.sum(torch.tensor(segmentation) == self.index_waypoint_segmentation,axis=-1)
+ 
+
         # penality IF we take too much time it might be linear or exponential or quadratic 
         
         actions_diff = torch.sum(torch.square(actions - self.previous_acts), dim=-1)
@@ -207,8 +215,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         
         cos_sim_sup = cos_sim > 0.90 
         reward = (
+            + torch.clamp(segmentation_sum / segmentation.shape[1]*0.5,0,1) 
             #+ self.reward_config['delta_yaw'] * yaw_bonus  
-            + self.reward_config['delta_cosim'] * cos_sim 
+            # + self.reward_config['delta_cosim'] * cos_sim 
             - self.reward_config['delta_linvel'] * torch.square(torch.linalg.norm(lin_vel, dim=-1))
             - self.reward_config['delta_actions'] * actions_diff
             - self.reward_config['delta_crash'] * crash_p
@@ -232,7 +241,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         x = self.waypoints[:,0:1] * torch.randn((self.num_envs,1)) * 0.5
         y = self.waypoints[:,1:2] * torch.randn((self.num_envs,1)) * 0.5
-        z = self.waypoints[:,2:3] * abs(torch.randn((self.num_envs,1))) 
+        z = self.waypoints[:,2:3] * 1.5 
         
         return torch.cat((x,y,z),dim=1)
 
@@ -278,8 +287,8 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
            
         self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
 
-        new_spans = self.spawn_next_to_waypoints()    
-
+        new_spans = self.spawn_next_to_waypoints() 
+        print("NEW SANS = ",new_spans)
         self.drone_poses[envs_idx] = new_spans[envs_idx]
         
         self.gs_drone.set_pos(new_spans[envs_idx], 

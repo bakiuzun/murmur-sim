@@ -49,7 +49,7 @@ for reward_name,reward_config in reward_presets.items():
         'actor_last_activation': torch.nn.Tanh(),
         'model_save_path': f"checkpoints/{reward_name}.pt",
         'dt': 0.01,
-        'show_viewer': False
+        'show_viewer': True
     }
 
     
