@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 from torch.distributions import Normal
-from structs.types import ModelSpec
+from structs.types import MlpSpec
 
 class ActorCritic(nn.Module):
 
     def __init__(self, 
                  obs_dim: int,
                  action_dim: int,
-                 actor_spec: ModelSpec,
-                 critic_spec: ModelSpec):
+                 actor_spec: MlpSpec,
+                 critic_spec: MlpSpec):
         
         super().__init__()
         
@@ -21,14 +21,14 @@ class ActorCritic(nn.Module):
         self.critic = nn.Sequential(*self._build_model(in_ch=obs_dim,
                                                        spec=critic_spec))
 
-    def _build_model(self, in_ch: int, spec: ModelSpec):
+    def _build_model(self, in_ch: int, spec: MlpSpec):
         blocks = []
         
         for i, size in enumerate(spec.hidden_sizes):
             out_ch = size 
 
             is_last = (i == len(spec.hidden_sizes) - 1) 
-            activation = spec.last_activation if is_last else spec.hidden_activation
+            activation = spec.last_activation if is_last else spec.activation
 
             blocks.append(nn.Linear(in_ch, out_ch))
                 

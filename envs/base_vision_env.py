@@ -73,7 +73,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.camera = self.scene.add_camera(res=(98,98),
                                          pos=(0.0,0.0,0.0),
                                          lookat=(0.0,0.0,0),
-                                         fov=90,GUI=True) 
+                                         fov=90,GUI=False) 
         
 
         self.camera.attach(self.gs_drone,offset_T=np.array([[1,0,0,0.],
@@ -100,7 +100,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         # DINO OUTPUT SIZE 
         self.cached_features = torch.zeros((self.num_envs,384))
         self.segmentation = torch.zeros((self.num_envs,98,98))
-        self.index_waypoint_segmentation = 1 
+        self.index_waypoint_segmentation = 2
 
 
     def save_multiple_target_img(self):
@@ -109,6 +109,9 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         # variate Z 
         def variate(axis=[2]):
+
+            features = []
+
             for i in range(-5,5): 
                 new_x = self.waypoints[0][0]+i*0.05 if 0 in axis else self.waypoints[0][0]
                 new_y = self.waypoints[0][1]+i*0.05 if 1 in axis else self.waypoints[0][1]
@@ -129,27 +132,36 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
                 rgb,_,_,_ = self.camera.render(rgb=True)
 
 
-                cos_sim = self.vision_module.cosine_sim(rgb,compute_features=True)
+                #cos_sim = self.vision_module.cosine_sim(rgb,compute_features=True)
 
-                print("Cos sim = ",cos_sim)
 
-            
+                features.append(self.vision_module.get_features(rgb))
                 
-                cv2.imwrite(f"target_imgs/img_{axis}-{i}.jpg",rgb[0])
+                #cv2.imwrite(f"target_imgs/img_{axis}-{i}.jpg",rgb[0])
 
-                
+            for x1 in features:
+                for x2 in features:
+                    # dist between both 
+                    dist = torch.linalg.norm(x1 - x2,-1)
+                    print("Dist = ",dist)
+
+
+
+
         variate(axis=[2])
+        """
         variate(axis=[0])
         variate(axis=[1])
         variate(axis=[1,2])
         variate(axis=[0,2])
         variate(axis=[0,1,2])
-        
+        """
 
     def step(self, actions):
         
         cliped_actions = torch.clip(actions,-1.0,1.0)
-        cliped_actions = torch.zeros_like(cliped_actions)
+        #cliped_actions = torch.zeros_like(cliped_actions)
+        
         target_rpm = (1 + cliped_actions) * 14468.429183500699
         self.gs_drone.set_propellers_rpm(target_rpm)
         self.camera.move_to_attach()
@@ -164,9 +176,10 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
 
         self.previous_acts = torch.where(self._internal_step == 0,actions,self.previous_acts)
         
-        reward,high_cos_sim = self.compute_reward(obs,actions)
+        #reward,high_cos_sim = self.compute_reward(obs,actions)
+        reward = self.compute_reward(obs,actions)
  
-        self.success_counter = self.success_counter + high_cos_sim.long()
+        #self.success_counter = self.success_counter + high_cos_sim.long()
 
         self.previous_obs = network_obs 
         self.previous_acts = actions
@@ -211,11 +224,23 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         actions_diff = torch.sum(torch.square(actions - self.previous_acts), dim=-1)
         crash_p = torch.where(height < 0.1, 1, 0)
         
-        cos_sim = self.vision_module.cosine_sim(features,compute_features=False)
+        #cos_sim = self.vision_module.cosine_sim(features,compute_features=False)
         
-        cos_sim_sup = cos_sim > 0.90 
+        #cos_sim_sup = cos_sim > 0.90
+
+        segmentation_sum = segmentation_sum.float()
+
+        inf_1800 = segmentation_sum <= 1800 
+        sup_1800 = segmentation_sum > 1800
+
+        segmentation_sum[inf_1800] = segmentation_sum[inf_1800] / 1800
+        segmentation_sum[sup_1800] = -torch.clamp((segmentation_sum[sup_1800] - 1800) / 1800,0,1)
+        
+
+
+
         reward = (
-            + torch.clamp(segmentation_sum / segmentation.shape[1]*0.5,0,1) 
+            + torch.clamp(segmentation_sum / 2500,0,1) 
             #+ self.reward_config['delta_yaw'] * yaw_bonus  
             # + self.reward_config['delta_cosim'] * cos_sim 
             - self.reward_config['delta_linvel'] * torch.square(torch.linalg.norm(lin_vel, dim=-1))
@@ -225,7 +250,7 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         )
 
             
-        return reward,cos_sim_sup
+        return reward #,cos_sim_sup
 
     def random_drone_spawn(self, n):
         """Spawn the drone randomly in the arena, above the trees."""
@@ -288,7 +313,6 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
         self.waypoints[envs_idx] = self.random_waypoints(n=len(envs_idx))
 
         new_spans = self.spawn_next_to_waypoints() 
-        print("NEW SANS = ",new_spans)
         self.drone_poses[envs_idx] = new_spans[envs_idx]
         
         self.gs_drone.set_pos(new_spans[envs_idx], 
@@ -296,4 +320,5 @@ class SimpleVisionTargetFollowingEnv(UAVEnv):
                              envs_idx=envs_idx)
 
         
+
 

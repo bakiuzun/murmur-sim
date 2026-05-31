@@ -219,5 +219,5 @@ if __name__ == "__main__":
 
     vision.save_features('target_imgs/',save_path='target_features')
     vision.load_features('target_features/features.pt')
-    vision.e_greedy(save_path='target_features/e_greedy_features.pt',ratio=0.1)
+    vision.e_greedy(save_path='models/target_features/e_greedy_features.pt',ratio=0.1)
 

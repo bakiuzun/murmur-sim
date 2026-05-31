@@ -1,1 +1,1 @@
-from structs.types import Transition,ModelSpec,EnvState
+from structs.types import Transition,ModelSpec,EnvState,MlpSpec,ConvSpec

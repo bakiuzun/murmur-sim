@@ -1,4 +1,8 @@
-import os 
+import os
+
+from torch._higher_order_ops.hints_wrap import hints_wrapper_dense
+from torch.nn.modules import activation
+
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # put this BEFORE importing jax
 import os
 import itertools
@@ -8,7 +12,55 @@ from algos import ppo
 import torch
 from envs import VisionTargetFollowingEnv,WayPointsFollowEnv
 from envs import SimpleVisionTargetFollowingEnv
+from models import PolicyNet,LatentNet,RSSM
+import torch.nn as nn 
+from structs.types import ModelSpec,MlpSpec,ConvSpec
+import torch.nn.functional as F
 
+
+policyNet = PolicyNet(
+           policy_spec=MlpSpec(hidden_sizes=[32*32+1024,1024,1024,1024,1024,2*4],
+                               activation="silu",
+                               norm="layernorm",
+                               last_activation=None),
+           max_std=2.0,
+           min_std=1.0)
+
+
+
+latentNet = LatentNet(
+        latent_spec=ConvSpec(
+                hidden_sizes=[48,2*48,4*48,8*48],
+                activation="silu",
+                kernel_sizes=3,
+                padding=1,
+                strides=1,
+                norm="layernorm",
+                last_activation=None)
+            )
+
+
+# stoch size is 32 and we have 4 actions 
+stateNet = RSSM(
+            sequence_model_spec=MlpSpec(hidden_sizes=[32+4,1024],
+                                        activation="silu",
+                                        norm='layernorm',
+                                        last_activation=None),
+
+            repre_model_spec=MlpSpec(hidden_sizes=[4096,1024,32*2],
+                                     activation="silu",
+                                     norm="layernorm",
+                                     last_activation=None),
+
+            dynamic_model_spec=MlpSpec(hidden_sizes=[4*4*8*96+4096,1024,32*2],
+                                       activation="silu",
+                                       norm="layernorm",
+                                       last_activation=None),
+
+        )
+
+
+"""
 device = gs.cuda if torch.cuda.is_available() else gs.cpu
 
 gs.init(backend=device,logging_level="warning")
@@ -61,3 +113,4 @@ for reward_name,reward_config in reward_presets.items():
     ppo.train()
     utils.finish_wandb()
 
+"""

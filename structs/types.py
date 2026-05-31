@@ -1,6 +1,8 @@
+from quadrants import i
 import torch
-import torch.nn as nn
-from typing import NamedTuple, Callable, Union
+from typing import NamedTuple, Callable, Union,List
+from dataclasses import dataclass, field
+
 
 class Transition(NamedTuple):
     terminated: torch.Tensor 
@@ -13,10 +15,33 @@ class Transition(NamedTuple):
 class ModelSpec(NamedTuple):
     # Note: In PyTorch, hidden_sizes is usually better typed as a tuple or list of ints 
     # (e.g., tuple[int, ...]) rather than a Tensor, but kept as Tensor here for exact translation.
-    hidden_sizes: torch.Tensor 
+    sizes: torch.Tensor 
     # Activations in PyTorch are typically instances of nn.Module (e.g., nn.ReLU())
     hidden_activation: Callable
-    last_activation: Union[Callable, None] 
+    last_activation: Union[Callable, None]
+    norm: Union[str,None]
+    layer: str
+
+
+@dataclass
+class MlpSpec:
+    hidden_sizes: list[int]
+    activation: str = "silu"
+    norm: str | None = "layernorm"
+    last_activation: str | None = None
+
+@dataclass
+class ConvSpec:
+    hidden_sizes: list[int]
+    kernel_sizes: list[int] | int 
+    strides: list[int] | int 
+    padding: list[int] | int 
+    activation: str = "silu"
+    norm: str | None = None 
+    last_activation: str | None = None 
+    
+
+
 
 class EnvState(NamedTuple):
     # Note: mjx_data is specific to MuJoCo JAX. If you are fully porting to PyTorch 
