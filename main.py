@@ -3,6 +3,8 @@ import os
 from torch._higher_order_ops.hints_wrap import hints_wrapper_dense
 from torch.nn.modules import activation
 
+from models.dreamer.obs_net import ObsNet
+
 os.environ['CUDA_VISIBLE_DEVICES'] = '1'  # put this BEFORE importing jax
 import os
 import itertools
@@ -11,56 +13,34 @@ import genesis as gs
 from algos import ppo 
 import torch
 from envs import VisionTargetFollowingEnv,WayPointsFollowEnv
-from envs import SimpleVisionTargetFollowingEnv
-from models import PolicyNet,LatentNet,RSSM
+from envs import SimpleVisionTargetFollowingEnv,DreamerEnv
+from envs import DreamerV3ReplayBuffer
+from models import PolicyNet,LatentNet,RSSM,RewardNet,ValueNet,DiscountNet
 import torch.nn as nn 
 from structs.types import ModelSpec,MlpSpec,ConvSpec
 import torch.nn.functional as F
+from models import DreamerV3
 
-
-policyNet = PolicyNet(
-           policy_spec=MlpSpec(hidden_sizes=[32*32+1024,1024,1024,1024,1024,2*4],
-                               activation="silu",
-                               norm="layernorm",
-                               last_activation=None),
-           max_std=2.0,
-           min_std=1.0)
-
-
-
-latentNet = LatentNet(
-        latent_spec=ConvSpec(
-                hidden_sizes=[48,2*48,4*48,8*48],
-                activation="silu",
-                kernel_sizes=3,
-                padding=1,
-                strides=1,
-                norm="layernorm",
-                last_activation=None)
-            )
-
-
-# stoch size is 32 and we have 4 actions 
-stateNet = RSSM(
-            sequence_model_spec=MlpSpec(hidden_sizes=[32+4,1024],
-                                        activation="silu",
-                                        norm='layernorm',
-                                        last_activation=None),
-
-            repre_model_spec=MlpSpec(hidden_sizes=[4096,1024,32*2],
-                                     activation="silu",
-                                     norm="layernorm",
-                                     last_activation=None),
-
-            dynamic_model_spec=MlpSpec(hidden_sizes=[4*4*8*96+4096,1024,32*2],
-                                       activation="silu",
-                                       norm="layernorm",
-                                       last_activation=None),
-
-        )
 
 
 """
+training_dataset = nnet.datasets.replay_buffers.DreamerV3ReplayBuffer(
+    batch_size=model.config.batch_size,
+    root=callback_path,
+    buffer_capacity=model.config.buffer_capacity,
+    epoch_length=epoch_length,
+    sample_length=model.config.L,
+    collate_fn=model.config.collate_fn,
+    save_trajectories=save_trajectories
+)
+model.set_replay_buffer(training_dataset)
+
+evaluation_dataset = nnet.datasets.VoidDataset(num_steps=model.config.eval_epidodes)
+"""
+
+
+
+
 device = gs.cuda if torch.cuda.is_available() else gs.cpu
 
 gs.init(backend=device,logging_level="warning")
@@ -105,12 +85,36 @@ for reward_name,reward_config in reward_presets.items():
     }
 
     
-    
-    run_name = f"{reward_name}"
-    utils.init_wandb(config, name=run_name)
-    env = SimpleVisionTargetFollowingEnv(config)
-    ppo = ppo.PPO(env,config,actorSpec=None,criticSpec=None)
-    ppo.train()
-    utils.finish_wandb()
 
-"""
+    dreamerEnv = DreamerEnv(config)
+    
+    dreamerEnv.reset()
+    
+    while True:
+      dreamerEnv.step(torch.zeros(2,4))
+
+
+    dreamer = DreamerV3(dreamerEnv)
+    dreamer.compile() # set optimizer, lr scheduling for each network
+
+    dreamer_replay_buffer = DreamerV3ReplayBuffer(
+        batch_size=16,
+        root=f"callbacks/DreamerV3/uavenv",
+        buffer_capacity=int(1e6),
+        epoch_length=12500,
+        sample_length=64,
+        save_trajectories=True)
+
+    dreamer.set_replay_buffer(dreamer_replay_buffer)
+
+    dreamer.on_train_begin()
+    #run_name = f"{reward_name}"
+    #utils.init_wandb(config, name=run_name)
+    #env = SimpleVisionTargetFollowingEnv(config)
+    #ppo = ppo.PPO(env,config,actorSpec=None,criticSpec=None)
+    #ppo.train()
+    #utils.finish_wandb()
+
+
+
+

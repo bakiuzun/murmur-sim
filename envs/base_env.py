@@ -9,6 +9,12 @@ from models import VisionModule
 import cv2
 from abc import ABC,abstractmethod
 
+from structs.types import AttrDict
+
+
+
+IDENTITY_QUAT = (1.0, 0.0, 0.0, 0.0)
+
 class UAVEnv(ABC):
     def __init__(self,config):
         self.reward_config = config['reward_config']
@@ -20,110 +26,82 @@ class UAVEnv(ABC):
 
         self.max_episode_length = math.ceil(config["episode_length_s"] / self.dt)
 
-        self.scene = gs.Scene(
-            sim_options=gs.options.SimOptions(dt=self.dt,substeps=2),
-            viewer_options=gs.options.ViewerOptions(
-                max_FPS=60,
-                camera_pos=(6.0,0.0,4.0),
-                camera_lookat=(0.0,0.0,1.0),
-                camera_fov=40,
-            ),
-            vis_options=gs.options.VisOptions(
-                rendered_envs_idx=list(range(self.rendered_env_num)),
-                ambient_light=(1.0, 1.0, 1.0),
-                shadow=False
-            ),
-            rigid_options=gs.options.RigidOptions(
-                dt=self.dt,
-                constraint_solver=gs.constraint_solver.Newton,
-                enable_collision=True,
-                enable_joint_limit=True,
-            ),
-            show_viewer=config['show_viewer'],
-        )
 
-        self.gs_drone = self.scene.add_entity(
-            gs.morphs.Drone(
-                file='urdf/drones/cf2x.urdf'
-            )
-        )
 
-    def _get_obs(self):
-        quats = self.gs_drone.get_quat()
-        lin_vel = self.gs_drone.get_vel() 
+
+    # ---- the single source of truth for "what an observation is" ----
+    def _proprio(self):
+        """Returns the low-dim state vector only. 
+           Drone internal state
+        """
+        if not hasattr(self,'gs_drone'):
+            return AttributeError('Error: gs drone is not defined') 
+
+
+        quats   = self.gs_drone.get_quat()
+        lin_vel = self.gs_drone.get_vel()
         ang_vel = self.gs_drone.get_ang()
-        
-        height = self.gs_drone.get_pos()[:,-1:]  
+        height  = self.gs_drone.get_pos()[:, -1:]
 
-        rotation_matrices = geom.quat_to_R(quats)
-        
-        world_frame_states = torch.stack([lin_vel,ang_vel],dim=-1)
+        R = geom.quat_to_R(quats)
+        world = torch.stack([lin_vel, ang_vel], dim=-1)
+        body  = R.mT @ world
+        return torch.cat(
+            (R.reshape(-1, 9), 
+            body[..., 0], # lin vel
+            body[..., 1], # ang vel
+            height), dim=1
+        )  # (N, 16)
+    
 
-        
-        body_frame_states = rotation_matrices.mT @ world_frame_states
-        
-        body_frame_lin_vel = body_frame_states[..., 0]
-        body_frame_ang_vel = body_frame_states[..., 1]
+    def _obs_dict(self):
+        """The full structured observation. Pixels added by subclass override."""
+        n = self.num_envs
+        obs = AttrDict()
+        obs.state = {'proprio': self._proprio()}
+        obs.is_first = torch.zeros(n,dtype=torch.bool,device=gs.device) # (N,) bool
+        obs.is_last = torch.zeros(n, dtype=torch.bool, device=gs.device)
+        obs.is_terminal = torch.zeros(n, dtype=torch.bool, device=gs.device) 
+        obs.reward = torch.zeros(n,dtype=torch.float32,device=gs.device) 
+        obs.done = torch.zeros(n,dtype=torch.bool,device=gs.device)
+        return obs
 
-        obs = torch.cat(
-            (rotation_matrices.reshape(-1,9), # [0,1,2,...,7,8] 8 included
-            body_frame_lin_vel, #91011
-            body_frame_ang_vel,#121314
-            height
-            ),
-            dim=1) 
 
-        return {'obs': obs}  
- 
-    def init_base_obs(self):
+    def _init_buffers(self):
+        """Allocate all persistent per-env state once. On-device, typed."""
+        N, dev = self.num_envs, gs.device
 
-        init_quat = torch.tensor([1.0,0.0,0.0,0.0],device=gs.device)
+        self.internal_step  = torch.zeros(N,1, dtype=torch.long,  device=dev)
+        self.success_counter = torch.zeros(N,1, dtype=torch.long,  device=dev)
 
-        self.success_counter = torch.zeros(self.num_envs)
-        self._internal_step =  torch.zeros((self.num_envs,1))
-        
-        # this is used for reset  
-        self.base_quat = torch.ones((self.num_envs,4),device=gs.device,dtype=gs.tc_float) * init_quat
-        self.base_lin_vel = torch.zeros((self.num_envs,3),device=gs.device,dtype=gs.tc_float)
-        self.base_ang_vel = torch.zeros((self.num_envs,3),device=gs.device,dtype=gs.tc_float)
-          
-        self.drone_lin_vel = self.base_lin_vel.clone()
-        self.drone_ang_vel = self.base_ang_vel.clone()
+        self._init_quat = torch.tensor(IDENTITY_QUAT, dtype=gs.tc_float, device=dev)
 
-        # drone pos to init in subclass 
 
-    def _reset_idx(self,envs_idx):   
-        if len(envs_idx) == 0:return 
-        
-        self.drone_lin_vel[envs_idx] = self.base_lin_vel[envs_idx]
-        self.drone_ang_vel[envs_idx] = self.base_ang_vel[envs_idx]
 
-        self.gs_drone.set_quat(self.base_quat[envs_idx], 
-                            zero_velocity=True, 
-                            envs_idx=envs_idx)
-
+    def _reset_idx(self, envs_idx):
+        if len(envs_idx) == 0:
+            return
+        n = len(envs_idx)
+        self.gs_drone.set_quat(
+            self._init_quat.expand(n, 4),   
+            zero_velocity=True, envs_idx=envs_idx,
+            )
         self.gs_drone.zero_all_dofs_velocity(envs_idx)
-            
-        self._internal_step[envs_idx] = 0 
-        self.success_counter[envs_idx] = 0
+        self.internal_step[envs_idx]  = 0
+        self.success_counter[envs_idx] = 0         
 
-        # subclass implement the drone reset pos 
 
     def reset(self,envs_idx=None):
         if envs_idx is None:
             envs_idx = torch.arange(self.num_envs)
 
         self._reset_idx(envs_idx)
+       
+        obs = self._obs_dict()
         
-        obs = self._get_obs()['obs']
-        
-        return obs[envs_idx]
-
-    @abstractmethod
-    def step(self, actions):pass
-
-
-
-    @abstractmethod
-    def compute_reward(self,obs,actions):pass
-    
+        if envs_idx is None:
+            obs['is_first'] = True 
+        else:
+            obs['is_first'][envs_idx] = True
+       
+        return obs

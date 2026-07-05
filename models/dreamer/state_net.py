@@ -1,8 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from structs import MlpSpec
-from ..layers import buildMLP,DreamerV3GRUCell
+from structs import MlpSpec,InitialRSSM
+from ..layers import buildMLP,DreamerV3GRUCell,Sigmoid2
 
 # TO UPDATE BECAUSE deter size and stoch size are ALREADY in the MlpSpec 
 class RSSM(nn.Module):
@@ -31,8 +31,9 @@ class RSSM(nn.Module):
         self.learn_initial = learn_initial
         self.action_clip = action_clip
 
-        # Sequence Model
+        self.std_fun =Sigmoid2()
 
+        # Sequence Model
         self.mlp_img1 = nn.Sequential(*buildMLP(sequence_model_spec))
 
         self.gru = DreamerV3GRUCell(gru_cell_spec=gru_cell_spec)
@@ -48,7 +49,7 @@ class RSSM(nn.Module):
         if self.learn_initial:
             self.weight_init = nn.Parameter(torch.zeros(self.deter_size))
 
-    """
+
     def get_stoch(self, deter):
         
         # MLP Img 2
@@ -61,28 +62,31 @@ class RSSM(nn.Module):
         dist_params = {'mean': mean, 'std': std}
     
         # Get Mode
-        stoch = self.get_dist(dist_params).mode()
+        stoch = self.get_dist(dist_params).mode
 
         return stoch
 
     def initial(self, batch_size=1, dtype=torch.float32, device="cpu", detach_learned=False):
 
-        initial_state = structs.AttrDict(
-                mean=torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
-                std=torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
-                stoch=torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
-                deter=torch.zeros(batch_size, self.deter_size, dtype=dtype, device=device)
-        )
+        initial_state = {
+                "mean":torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
+                "std":torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
+                "stoch":torch.zeros(batch_size, self.stoch_size, dtype=dtype, device=device),
+                "deter":torch.zeros(batch_size, self.deter_size, dtype=dtype, device=device)
 
+        } 
         # Learned Initial
         if self.learn_initial:
-            initial_state.deter = F.tanh(self.weight_init).repeat(batch_size, 1)
-            initial_state.stoch = self.get_stoch(initial_state.deter) 
+            deter = F.tanh(self.weight_init).repeat(batch_size, 1)
+            stoch = self.get_stoch(deter) 
 
             # Detach Learned
             if detach_learned:
-                initial_state.deter = initial_state.deter.detach()
-                initial_state.stoch = initial_state.stoch.detach()
+                deter = deter.detach()
+                stoch = stoch.detach()
+            initial_state['deter'] = deter 
+            initial_state['stoch'] = stoch
+
 
         return initial_state
 
@@ -153,12 +157,10 @@ class RSSM(nn.Module):
         return torch.cat([stoch, state["deter"]], dim=-1)
     
     def get_dist(self, state):
-
-        return torch.distributions.Independent(distributions.Normal(loc=state['mean'], scale=state['std']), 1)
+        return torch.distributions.Independent(torch.distributions.Normal(loc=state['mean'], scale=state['std']), 1)
 
     def forward_img(self, prev_state, prev_action):
-
-
+        # PRIOR 
         # espace latent prev state, prev action qui peut etre imaginer OU le reel 
 
         # Clip Action -c:+c
@@ -219,6 +221,8 @@ class RSSM(nn.Module):
 
         return {"stoch": stoch, "deter": deter, **dist_params}
 
+
+
     def forward(self, prev_state, prev_action, embed, is_first):
 
         assert embed.dim() == 2
@@ -250,4 +254,4 @@ class RSSM(nn.Module):
 
         # Return post and prior
         return post, prior
-    """
+    

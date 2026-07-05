@@ -390,7 +390,6 @@ class VisionTargetFollowingEnv(UAVEnv):
 
         # randomize waypoints 
         before = self.waypoints.clone()
-
         self.previous_obs = obs 
         self.previous_acts = actions
 

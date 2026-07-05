@@ -19,7 +19,8 @@ class LatentNet(nn.Module):
             
     def forward(self, x: torch.Tensor):
         
-        # NOT SURE ABOUT THE LATENT SHAPE THOUGH I THINK IT4S A GRID  
+        # NOT SURE ABOUT THE LATENT SHAPE THOUGH I THINK IT4S A GRID 
+        print("X shape = ",x.shape)
         return self.latentNet(x)
 
 

@@ -41,8 +41,6 @@ class WayPointsFollowEnv(UAVEnv):
 
         # pos,quat,lin_vel,ang_vel
 
-
-
         self.init_base_obs()
 
         self.obs_size = self._get_obs().shape[-1]
